@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>大阪大学大学院人文学研究科 デジタルアカデミア</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -21,6 +21,22 @@
   <div id="app-content" style="display:none">
   <canvas id="canvas"></canvas>
 
+  <!-- Tutorial overlay -->
+  <div id="tutorial-overlay" style="display:none">
+    <div id="tutorial-box">
+      <h2>使い方</h2>
+      <ul class="tutorial-list">
+        <li><span class="tut-key">ドラッグ</span>画面を移動</li>
+        <li><span class="tut-key">スクロール / ピンチ</span>拡大・縮小</li>
+        <li><span class="tut-key">クリック / タップ</span>ノードの詳細を表示</li>
+        <li><span class="tut-key">検索</span>授業名・教員名・研究者名で検索</li>
+        <li><span class="tut-key">凡例</span>トピッククラスタをクリックでフィルタ</li>
+        <li><span class="tut-key">上部ボタン</span>授業 / 研究業績ネットワーク切替</li>
+      </ul>
+      <button id="tutorial-close" class="ctrl-btn">はじめる</button>
+    </div>
+  </div>
+
   <div id="mode-switch">
     <button class="mode-btn active" data-mode="syllabus">授業ネットワーク</button>
     <button class="mode-btn" data-mode="researcher">研究業績ネットワーク</button>
@@ -35,7 +51,10 @@
   <div id="info-panel" class="panel hidden">
     <div class="panel-header">
       <h2 id="panel-title"></h2>
-      <button id="panel-close">&times;</button>
+      <div class="panel-actions">
+        <button id="panel-share" class="share-btn" title="URLをコピー">&#128279;</button>
+        <button id="panel-close">&times;</button>
+      </div>
     </div>
     <p id="panel-title-en" class="subtitle"></p>
     <p id="panel-subtitle" class="course-subtitle"></p>
@@ -60,6 +79,7 @@
       <button id="instr-panel-close">&times;</button>
     </div>
     <p id="instr-panel-count" class="subtitle"></p>
+    <div id="instr-panel-crosslink" class="crosslink"></div>
     <h3 class="section-label">担当科目一覧</h3>
     <ul id="instr-panel-list" class="instr-course-list"></ul>
   </div>
@@ -68,7 +88,10 @@
   <div id="researcher-panel" class="panel hidden">
     <div class="panel-header">
       <h2 id="res-panel-name"></h2>
-      <button id="res-panel-close">&times;</button>
+      <div class="panel-actions">
+        <button id="res-panel-share" class="share-btn" title="URLをコピー">&#128279;</button>
+        <button id="res-panel-close">&times;</button>
+      </div>
     </div>
     <p id="res-panel-name-en" class="subtitle"></p>
     <div class="meta">
@@ -76,6 +99,7 @@
       <span id="res-panel-rank" class="tag"></span>
       <span id="res-panel-cluster" class="tag cluster-tag"></span>
     </div>
+    <div id="res-panel-crosslink" class="crosslink"></div>
     <h3 class="section-label">研究業績数</h3>
     <p id="res-panel-count" class="res-count"></p>
     <h3 class="section-label">代表的な業績</h3>
@@ -84,13 +108,40 @@
     <ul id="res-panel-related" class="related-list"></ul>
   </div>
 
+  <!-- Cluster tooltip -->
+  <div id="cluster-tooltip" class="cluster-tooltip" style="display:none"></div>
+
   <div id="legend" class="legend-panel"></div>
+
+  <!-- Minimap -->
+  <canvas id="minimap"></canvas>
+
+  <!-- Node size legend -->
+  <div id="size-legend" class="size-legend">
+    <div class="legend-title">NODE SIZE</div>
+    <div class="size-legend-row">
+      <span class="size-dot size-sm"></span>
+      <span>関連少</span>
+      <span class="size-dot size-lg"></span>
+      <span>関連多</span>
+    </div>
+    <div class="size-legend-row">
+      <span class="edge-thin"></span>
+      <span>類似度低</span>
+      <span class="edge-thick"></span>
+      <span>類似度高</span>
+    </div>
+  </div>
 
   <div id="controls">
     <button id="toggle-layout" class="ctrl-btn">UMAP</button>
+    <button id="home-btn" class="ctrl-btn" title="ビューをリセット">&#8962;</button>
     <input type="range" id="zoom-slider" min="0.05" max="3" step="0.05" value="1">
     <span id="zoom-label">100%</span>
   </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast"></div>
 
   <!-- Startup animation -->
   <div id="startup-overlay" style="display:none">
@@ -116,7 +167,6 @@
     const app = document.getElementById("app-content");
     const startupOverlay = document.getElementById("startup-overlay");
 
-    // Check session
     if (sessionStorage.getItem("da-auth") === "1") {
       authOverlay.style.display = "none";
       showStartupAndLoad();
@@ -145,24 +195,17 @@
     function showStartupAndLoad() {
       if (appLoaded) return;
       appLoaded = true;
-
-      // Show startup overlay with particles
       startupOverlay.style.display = "flex";
       spawnParticles();
-
-      // Load app in background
       app.style.display = "block";
       app.style.opacity = "0";
       const s = document.createElement("script");
       s.src = "main.js";
       s.onload = () => {
-        // Wait for animation to play, then fade out startup
         setTimeout(() => {
           startupOverlay.classList.add("fade-out");
           app.style.opacity = "1";
-          setTimeout(() => {
-            startupOverlay.style.display = "none";
-          }, 1200);
+          setTimeout(() => { startupOverlay.style.display = "none"; }, 1200);
         }, 2200);
       };
       document.body.appendChild(s);
