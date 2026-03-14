@@ -57,6 +57,10 @@
     if (!dataCache[key]) {
       const r = await fetch(ds.url);
       dataCache[key] = await r.json();
+      // Store original x/y on first load
+      for (const n of dataCache[key].nodes) {
+        n._origX = n.x; n._origY = n.y;
+      }
     }
     const data = dataCache[key];
     currentDatasetKey = key;
@@ -67,7 +71,8 @@
     idToIndex = new Map();
     nodes.forEach((n, i) => {
       idToIndex.set(n.id, i);
-      n.umapX = n.x || 0; n.umapY = n.y || 0;
+      n.umapX = n._origX || 0; n.umapY = n._origY || 0;
+      n.x = n.umapX; n.y = n.umapY;
       n.forceX = (Math.random() - 0.5) * 800; n.forceY = (Math.random() - 0.5) * 800;
       n.vx = 0; n.vy = 0; n.degree = 0;
     });
@@ -123,8 +128,6 @@
         });
       });
     }
-
-    nodes.forEach((n) => { n.x = n.umapX; n.y = n.umapY; });
 
     camX = 0; camY = 0; camZoom = 1;
     layoutMode = "umap"; layoutTransition = 1; alpha = 0.01;
