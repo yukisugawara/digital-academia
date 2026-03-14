@@ -128,9 +128,9 @@
     clusterColors = [];
     for (let i = 0; i < N_CLUSTERS; i++) clusterColors.push((i * 360 / N_CLUSTERS + 200) % 360);
 
-    // Syllabus: 13 clusters
-    const SYLLABUS_LABELS_JA = { 0:"ドイツ・北欧地域研究",1:"研究セミナー・論文執筆・芸術表現",2:"インド・仏教・南アジア研究",3:"美学・美術批評・視覚文化",4:"異文化理解・人文学基礎",5:"中国文学・語学・中国史",6:"修士論文指導・日本語教育・日本文化",7:"西洋文学・中央アジア・東南アジア地域研究",8:"スペイン語・ポルトガル語圏・フランス文学",9:"臨床哲学・倫理学・科学技術社会論",10:"中央ユーラシア・東アジア古典文献",11:"東アジア言語文化・朝鮮語学・歴史",12:"外国語教育・言語学・言語習得" };
-    const SYLLABUS_LABELS_EN = { 0:"German & Northern European Studies",1:"Research Seminars / Academic Writing / Arts",2:"Indian / Buddhist / South Asian Studies",3:"Aesthetics / Art Criticism / Visual Culture",4:"Intercultural Studies / Humanities",5:"Chinese Literature / Linguistics / History",6:"Thesis Supervision / Japanese Lang. Education",7:"Western Literature / Central & SE Asian Studies",8:"Iberian Languages / Francophone Literature",9:"Clinical Philosophy / Ethics / STS",10:"Central Eurasian / East Asian Classical Texts",11:"East Asian Languages / Korean / History",12:"Foreign Language Education / Linguistics" };
+    // Syllabus (faculty nodes): 9 clusters
+    const SYLLABUS_LABELS_JA = { 0:"ドイツ・北欧・美術史",1:"西洋文学・古代史・哲学",2:"臨床哲学・デジタル人文学・対話",3:"東南アジア・国際関係・地域研究",4:"倫理学・法制史・フランス文学",5:"言語学・言語教育・音韻論",6:"文化人類学・教育実践・比較文化",7:"中国学・東洋史・漢文",8:"日本文学・近現代国際関係・比較文化" };
+    const SYLLABUS_LABELS_EN = { 0:"German / Northern European / Art History",1:"Western Literature / Ancient History / Philosophy",2:"Clinical Philosophy / Digital Humanities / Dialogue",3:"Southeast Asia / International Relations",4:"Ethics / Legal History / French Literature",5:"Linguistics / Language Education / Phonology",6:"Cultural Anthropology / Educational Practice",7:"Chinese Studies / Eastern History",8:"Japanese Literature / Modern International Relations" };
     // Researcher: 8 clusters
     const RESEARCHER_LABELS_JA = { 0:"文学研究・比較文化・言語学",1:"英米文学・哲学・演劇",2:"言語学・教育実践・デジタル人文学",3:"近現代国際関係・移民・異文化交流",4:"東洋学・仏教学・中東・南アジア",5:"中国学・東洋史・漢文",6:"臨床哲学・ケアの倫理・対話",7:"フランス文学・西洋古代史・法制史" };
     const RESEARCHER_LABELS_EN = { 0:"Literary Studies / Comparative Culture / Linguistics",1:"English & American Lit. / Philosophy / Drama",2:"Linguistics / Educational Practice / Digital Humanities",3:"Modern International Relations / Migration",4:"Oriental Studies / Buddhism / Middle East & South Asia",5:"Chinese Studies / Eastern History",6:"Clinical Philosophy / Ethics of Care / Dialogue",7:"French Literature / Western Ancient History / Legal History" };
@@ -156,17 +156,6 @@
     clusterLabelsJa = Array.from({ length: N_CLUSTERS }, (_, i) => labelsJa[i] || `Topic ${i}`);
     clusterLabelsEn = Array.from({ length: N_CLUSTERS }, (_, i) => labelsEn[i] || `Topic ${i}`);
     clusterLabels = lang === "en" ? clusterLabelsEn : clusterLabelsJa;
-
-    instructorMap = new Map();
-    if (ds.type === "syllabus") {
-      nodes.forEach((n, i) => {
-        (n.instructors || []).forEach((name) => {
-          const k = name.trim(); if (!k) return;
-          if (!instructorMap.has(k)) instructorMap.set(k, []);
-          instructorMap.get(k).push(i);
-        });
-      });
-    }
 
     camX = 0; camY = 0; camZoom = 1;
     layoutMode = "umap"; layoutTransition = 1; alpha = 0.01;
@@ -253,11 +242,10 @@
     zoomLabel.textContent = Math.round(camZoom * 100) + "%";
   }, { passive: false });
 
-  // ===== Home button (feature 3) =====
-  document.getElementById("home-btn").addEventListener("click", () => {
-    animateCameraTo(0, 0, 1);
-    // animateCameraTo targets -tx, -ty so passing 0,0 resets to center
-    // but we need camX=0, camY=0, so let's handle it:
+  // ===== Home / reset view =====
+  function resetView() {
+    selectedNode = null; highlightedNodes.clear(); activeCluster = null;
+    hidePanel(); hideResearcherPanel();
     const startX = camX, startY = camY, startZ = camZoom;
     const duration = 600, start = performance.now();
     function step(now) {
@@ -270,7 +258,10 @@
       if (t < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
-  });
+  }
+  document.getElementById("home-btn").addEventListener("click", resetView);
+  const homeLogo = document.getElementById("home-logo");
+  if (homeLogo) homeLogo.addEventListener("click", resetView);
 
   // ===== Touch support (feature 10) =====
   let touches = [];
@@ -423,25 +414,16 @@
     const q = searchInput.value.trim().toLowerCase();
     suggestionIndex = -1;
     if (!q) { suggestions.classList.remove("active"); highlightedNodes.clear(); return; }
-    currentSuggestions = [];
-    if (currentDatasetKey === "syllabus") {
-      for (const [name, indices] of instructorMap) {
-        if (name.toLowerCase().includes(q)) currentSuggestions.push({ type: "instructor", name, nodeIndices: indices });
-      }
-      currentSuggestions.sort((a, b) => b.nodeIndices.length - a.nodeIndices.length);
-      currentSuggestions = currentSuggestions.slice(0, 5);
-      const cr = nodes.filter((n) => {
-        const l = (n.label||"").toLowerCase(), le = (n.label_en||"").toLowerCase(), s = (n.subtitle||"").toLowerCase();
-        return l.includes(q) || le.includes(q) || s.includes(q);
-      }).slice(0, 15 - currentSuggestions.length).map((n) => ({ type: "node", node: n }));
-      currentSuggestions = currentSuggestions.concat(cr);
-    } else {
-      currentSuggestions = nodes.filter((n) => {
-        const l = (n.label||"").toLowerCase(), le = (n.label_en||"").toLowerCase();
-        const a = (n.affiliation||"").toLowerCase(), t = (n.top_titles||[]).join(" ").toLowerCase();
-        return l.includes(q) || le.includes(q) || a.includes(q) || t.includes(q);
-      }).slice(0, 15).map((n) => ({ type: "node", node: n }));
-    }
+    // Both modes: nodes are people (faculty or researchers)
+    currentSuggestions = nodes.filter((n) => {
+      const l = (n.label||"").toLowerCase(), le = (n.label_en||"").toLowerCase();
+      const a = (n.affiliation||"").toLowerCase();
+      // Search in courses (syllabus) or titles (researcher)
+      const extra = currentDatasetKey === "syllabus"
+        ? (n.courses||[]).map(c => c.label + " " + c.subtitle).join(" ").toLowerCase()
+        : (n.top_titles||[]).join(" ").toLowerCase();
+      return l.includes(q) || le.includes(q) || a.includes(q) || extra.includes(q);
+    }).slice(0, 15).map((n) => ({ type: "node", node: n }));
     renderSuggestions(currentSuggestions, q);
   });
 
@@ -462,15 +444,13 @@
   function renderSuggestions(results, q) {
     if (!results.length) { suggestions.classList.remove("active"); return; }
     suggestions.innerHTML = results.map((item, i) => {
-      if (item.type === "instructor") {
-        return `<li data-index="${i}" class="suggestion-instructor"><div>👤 ${highlightMatch(item.name, q)}</div><div class="suggestion-sub">担当科目 ${item.nodeIndices.length} 件</div></li>`;
-      }
       const n = item.node;
-      if (currentDatasetKey === "researcher") {
-        return `<li data-index="${i}"><div>${highlightMatch(n.label, q)}</div><div class="suggestion-sub">${escapeHtml(n.affiliation||"")} ${escapeHtml(n.rank||"")} / 業績 ${n.achievement_count||0} 件</div></li>`;
-      }
-      const instr = (n.instructors||[]).join(", "), sub = n.subtitle ? ` — ${n.subtitle}` : "";
-      return `<li data-index="${i}"><div>${highlightMatch(n.label, q)}</div><div class="suggestion-sub">${escapeHtml(instr)}${escapeHtml(sub)}</div></li>`;
+      const aff = n.affiliation || "";
+      const rank = n.rank || "";
+      const detail = currentDatasetKey === "researcher"
+        ? `${escapeHtml(aff)} ${escapeHtml(rank)} / ${t("業績","publications")} ${n.achievement_count||0} ${t("件","")}`
+        : `${escapeHtml(aff)} ${escapeHtml(rank)} / ${n.course_count||0} ${t("科目","courses")}`;
+      return `<li data-index="${i}"><div>${highlightMatch(n.label, q)}</div><div class="suggestion-sub">${detail}</div></li>`;
     }).join("");
     suggestions.classList.add("active");
     suggestions.querySelectorAll("li").forEach((li) => {
@@ -480,25 +460,12 @@
 
   function selectSuggestionItem(item) {
     suggestions.classList.remove("active");
-    if (item.type === "instructor") selectInstructor(item.name, item.nodeIndices);
-    else selectSearchResult(item.node);
-  }
-
-  function selectInstructor(name, nodeIndices) {
-    highlightedNodes = new Set(nodeIndices.map((i) => nodes[i].id));
-    highlightPulse = 0; searchInput.value = name; selectedNode = null;
-    hidePanel(); hideResearcherPanel();
-    showInstructorPanel(name, nodeIndices);
-    if (nodeIndices.length > 0) {
-      let cx = 0, cy = 0;
-      nodeIndices.forEach((i) => { cx += nodes[i].x; cy += nodes[i].y; });
-      animateCameraTo(cx / nodeIndices.length, cy / nodeIndices.length, nodeIndices.length > 5 ? 0.6 : 0.9);
-    }
+    selectSearchResult(item.node);
   }
 
   function selectSearchResult(n) {
     highlightedNodes = new Set([n.id]); highlightPulse = 0;
-    selectedNode = n; hideInstructorPanel();
+    selectedNode = n;
     suggestions.classList.remove("active"); searchInput.value = n.label;
     if (currentDatasetKey === "researcher") { showResearcherPanel(n); hidePanel(); }
     else { showPanel(n); hideResearcherPanel(); }
@@ -528,17 +495,16 @@
 
   document.addEventListener("click", (e) => { if (!e.target.closest("#search-box")) suggestions.classList.remove("active"); });
 
-  // ===== Syllabus panel =====
+  // ===== Faculty panel (syllabus mode) =====
   const panel = document.getElementById("info-panel");
   const panelTitle = document.getElementById("panel-title");
   const panelTitleEn = document.getElementById("panel-title-en");
-  const panelSubtitle = document.getElementById("panel-subtitle");
-  const panelSemester = document.getElementById("panel-semester");
-  const panelDay = document.getElementById("panel-day");
+  const panelAffiliation = document.getElementById("panel-affiliation");
+  const panelRank = document.getElementById("panel-rank");
   const panelCluster = document.getElementById("panel-cluster");
-  const panelInstructors = document.getElementById("panel-instructors");
-  const panelObjective = document.getElementById("panel-objective");
-  const panelGoals = document.getElementById("panel-goals");
+  const panelCrosslink = document.getElementById("panel-crosslink");
+  const panelCourseCount = document.getElementById("panel-course-count");
+  const panelCourses = document.getElementById("panel-courses");
   const panelRelated = document.getElementById("panel-related");
 
   document.getElementById("panel-close").addEventListener("click", () => { selectedNode = null; hidePanel(); });
@@ -548,34 +514,40 @@
     const isEn = lang === "en";
     panelTitle.textContent = isEn ? (n.label_en || n.label) : n.label;
     panelTitleEn.textContent = isEn ? n.label : (n.label_en || "");
-    panelSubtitle.textContent = isEn ? (n.subtitle_en || n.subtitle || "") : (n.subtitle || "");
-    panelSemester.textContent = isEn ? (n.semester_en || n.semester || "") : (n.semester || "");
-    panelDay.textContent = isEn ? (n.day_period_en || n.day_period || "") : (n.day_period || "");
+    panelAffiliation.textContent = n.affiliation || "";
+    panelRank.textContent = n.rank || "";
     panelCluster.textContent = clusterLabels[n.cluster] || `Topic ${n.cluster}`;
     panelCluster.style.borderColor = `hsl(${clusterColors[n.cluster]},60%,50%)`;
     panelCluster.style.color = `hsl(${clusterColors[n.cluster]},70%,65%)`;
-    const instrNames = isEn ? (n.instructors_en && n.instructors_en.length ? n.instructors_en : n.instructors || []) : (n.instructors || []);
-    panelInstructors.innerHTML = instrNames
-      .map((name, idx) => {
-        const jaName = (n.instructors || [])[idx] || name;
-        return `<span class="instructor-chip clickable" data-instructor="${escapeHtml(jaName)}">${escapeHtml(name)}</span>`;
-      }).join("");
-    panelInstructors.querySelectorAll(".instructor-chip.clickable").forEach((chip) => {
-      chip.addEventListener("click", () => {
-        const instrName = chip.dataset.instructor;
-        const indices = instructorMap.get(instrName);
-        if (indices) { hidePanel(); selectInstructor(instrName, indices); }
+
+    // Cross-link to researcher network
+    if (researcherNameToId[n.label]) {
+      const linkText = t("研究業績ネットワークで見る", "View in Research Network");
+      panelCrosslink.innerHTML = `<button class="crosslink-btn">&#8594; ${escapeHtml(linkText)}</button>`;
+      panelCrosslink.querySelector("button").addEventListener("click", async () => {
+        const rid = researcherNameToId[n.label];
+        hidePanel();
+        await loadDataset("researcher");
+        const rn = nodes[idToIndex.get(rid)];
+        if (rn) { selectedNode = rn; highlightedNodes = new Set([rn.id]); highlightPulse = 0; showResearcherPanel(rn); setTimeout(() => animateCameraTo(rn.x, rn.y, 1.2), 100); }
       });
-    });
-    const noInfo = t("（情報なし）", "(No information)");
-    panelObjective.textContent = isEn ? (n.objective_en || n.objective || noInfo) : (n.objective || noInfo);
-    panelGoals.textContent = isEn ? (n.goals_en || n.goals || noInfo) : (n.goals || noInfo);
+    } else { panelCrosslink.innerHTML = ""; }
+
+    panelCourseCount.textContent = `${n.course_count || 0} ${t("科目", "courses")}`;
+
+    const courses = n.courses || [];
+    panelCourses.innerHTML = courses.map((c) => {
+      const name = isEn ? (c.label_en || c.label) : c.label;
+      const sub = isEn ? (c.subtitle_en || c.subtitle || "") : (c.subtitle || "");
+      const sem = isEn ? (c.semester_en || c.semester || "") : (c.semester || "");
+      return `<li><div class="instr-course-name">${escapeHtml(name.replace(/^\[科目\]/,""))}</div><div class="instr-course-sub">${escapeHtml(sem)}${sub ? " — " + escapeHtml(sub) : ""}</div></li>`;
+    }).join("");
 
     const related = (adjacency.get(n.id)||[]).sort((a, b) => b.weight - a.weight).slice(0, 10);
     panelRelated.innerHTML = related.map((r) => {
       const rn = nodes[idToIndex.get(r.id)]; if (!rn) return "";
       const name = isEn ? (rn.label_en || rn.label) : rn.label;
-      return `<li data-id="${r.id}">${escapeHtml(name.replace(/^\[科目\]/,""))}<span class="rel-score">${Math.round(r.weight*100)}%</span></li>`;
+      return `<li data-id="${r.id}">${escapeHtml(name)}<span class="rel-score">${Math.round(r.weight*100)}%</span></li>`;
     }).join("");
     panelRelated.querySelectorAll("li").forEach((li) => {
       li.addEventListener("click", () => {
@@ -588,44 +560,8 @@
   }
   function hidePanel() { panel.classList.add("hidden"); }
 
-  // ===== Instructor panel with cross-link (feature 4) =====
-  const instrPanel = document.getElementById("instructor-panel");
-  const instrPanelName = document.getElementById("instr-panel-name");
-  const instrPanelCount = document.getElementById("instr-panel-count");
-  const instrPanelCrosslink = document.getElementById("instr-panel-crosslink");
-  const instrPanelList = document.getElementById("instr-panel-list");
-
-  document.getElementById("instr-panel-close").addEventListener("click", () => { hideInstructorPanel(); highlightedNodes.clear(); });
-
-  function showInstructorPanel(name, nodeIndices) {
-    instrPanelName.textContent = name;
-    instrPanelCount.textContent = `${nodeIndices.length} 科目`;
-
-    // Cross-link to researcher network
-    if (researcherNameToId[name]) {
-      instrPanelCrosslink.innerHTML = `<button class="crosslink-btn" data-name="${escapeHtml(name)}">&#8594; ${escapeHtml(t("研究業績ネットワークで見る", "View in Research Network"))}</button>`;
-      instrPanelCrosslink.querySelector("button").addEventListener("click", async () => {
-        const rid = researcherNameToId[name];
-        hideInstructorPanel(); highlightedNodes.clear();
-        await loadDataset("researcher");
-        const rn = nodes[idToIndex.get(rid)];
-        if (rn) { selectedNode = rn; highlightedNodes = new Set([rn.id]); highlightPulse = 0; showResearcherPanel(rn); setTimeout(() => animateCameraTo(rn.x, rn.y, 1.2), 100); }
-      });
-    } else { instrPanelCrosslink.innerHTML = ""; }
-
-    instrPanelList.innerHTML = nodeIndices.map((i) => {
-      const n = nodes[i]; const cn = n.label.replace(/^\[科目\]/,""), sub = n.subtitle ? ` — ${n.subtitle}` : "";
-      return `<li data-id="${n.id}"><div class="instr-course-name">${escapeHtml(cn)}</div><div class="instr-course-sub">${escapeHtml(n.semester||"")}${escapeHtml(sub)}</div></li>`;
-    }).join("");
-    instrPanelList.querySelectorAll("li").forEach((li) => {
-      li.addEventListener("click", () => {
-        const n = nodes[idToIndex.get(li.dataset.id)];
-        if (n) { hideInstructorPanel(); selectedNode = n; highlightedNodes = new Set([n.id]); highlightPulse = 0; showPanel(n); animateCameraTo(n.x, n.y, 1.2); }
-      });
-    });
-    instrPanel.classList.remove("hidden");
-  }
-  function hideInstructorPanel() { instrPanel.classList.add("hidden"); }
+  // Stub for backward compat
+  function hideInstructorPanel() {}
 
   // ===== Researcher panel with cross-link (feature 4) =====
   const resPanel = document.getElementById("researcher-panel");
@@ -653,23 +589,20 @@
     resPanelCluster.style.color = `hsl(${clusterColors[n.cluster]},70%,65%)`;
     resPanelCount.textContent = `${n.achievement_count||0} ${t("件", "items")}`;
 
-    // Cross-link to syllabus
+    // Cross-link to syllabus (same sid = same node in syllabus network)
     const syllabusData = dataCache.syllabus;
     let hasSyllabus = false;
     if (syllabusData) {
-      const instrNodes = [];
-      for (const sn of syllabusData.nodes) {
-        if ((sn.instructors||[]).some((instr) => instr.trim() === n.label.trim())) instrNodes.push(sn);
-      }
-      if (instrNodes.length > 0) {
+      const sylNode = syllabusData.nodes.find((sn) => sn.id === n.id || sn.label.trim() === n.label.trim());
+      if (sylNode) {
         hasSyllabus = true;
-        const linkText = t(`授業ネットワークで見る（${instrNodes.length}科目）`, `View in Course Network (${instrNodes.length} courses)`);
+        const linkText = t("授業ネットワークで見る", "View in Course Network");
         resPanelCrosslink.innerHTML = `<button class="crosslink-btn">&#8594; ${escapeHtml(linkText)}</button>`;
         resPanelCrosslink.querySelector("button").addEventListener("click", async () => {
           hideResearcherPanel();
           await loadDataset("syllabus");
-          const indices = instructorMap.get(n.label.trim());
-          if (indices) selectInstructor(n.label.trim(), indices);
+          const sn = nodes[idToIndex.get(sylNode.id)];
+          if (sn) { selectedNode = sn; highlightedNodes = new Set([sn.id]); highlightPulse = 0; showPanel(sn); setTimeout(() => animateCameraTo(sn.x, sn.y, 1.2), 100); }
         });
       }
     }
@@ -802,8 +735,8 @@
           const op = isActive ? 0.95 : Math.min(0.75, (camZoom - 0.4) * 1.5);
           if (op > 0) { ctx.fillStyle = `rgba(255,255,255,${op})`; ctx.font = `${Math.max(7, Math.min(11, 9 / Math.sqrt(camZoom)))}px "Hiragino Sans",sans-serif`; ctx.textAlign = "center"; ctx.fillText(lang === "en" ? (n.label_en || n.label) : n.label, n.x, n.y - r - 4); }
         }
-      } else if (camZoom > 1.0 && n.degree > 10) {
-        const lbl = (lang === "en" ? (n.subtitle_en||n.label_en||n.subtitle||n.label||"") : (n.subtitle||n.label||"")).replace(/^\[科目\]/,"").slice(0, 15);
+      } else if (camZoom > 0.6 || isActive) {
+        const lbl = (lang === "en" ? (n.label_en || n.label) : n.label).slice(0, 15);
         ctx.fillStyle = `rgba(255,255,255,${Math.min(0.8, (camZoom - 1) * 0.8)})`;
         ctx.font = `${Math.max(8, 10 / camZoom * 1.2)}px "Hiragino Sans",sans-serif`; ctx.textAlign = "center";
         ctx.fillText(lbl, n.x, n.y - r - 4);

@@ -37,6 +37,31 @@
     </div>
   </div>
 
+  <div id="home-logo" title="Digital Academia Home">
+    <svg viewBox="0 0 40 40" width="36" height="36">
+      <defs>
+        <linearGradient id="glow-grad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#7850ff" stop-opacity="0.8"/>
+          <stop offset="100%" stop-color="#00c8dc" stop-opacity="0.6"/>
+        </linearGradient>
+      </defs>
+      <circle cx="20" cy="20" r="5" fill="url(#glow-grad)" opacity="0.9"/>
+      <circle cx="10" cy="12" r="2.5" fill="#7850ff" opacity="0.6"/>
+      <circle cx="30" cy="10" r="2" fill="#00c8dc" opacity="0.5"/>
+      <circle cx="12" cy="30" r="2" fill="#b8a0ff" opacity="0.5"/>
+      <circle cx="32" cy="28" r="2.5" fill="#6aeae0" opacity="0.6"/>
+      <circle cx="8" cy="22" r="1.5" fill="#b8a0ff" opacity="0.4"/>
+      <circle cx="28" cy="34" r="1.5" fill="#7850ff" opacity="0.4"/>
+      <line x1="20" y1="20" x2="10" y2="12" stroke="#7850ff" stroke-width="0.6" opacity="0.4"/>
+      <line x1="20" y1="20" x2="30" y2="10" stroke="#00c8dc" stroke-width="0.6" opacity="0.4"/>
+      <line x1="20" y1="20" x2="12" y2="30" stroke="#b8a0ff" stroke-width="0.6" opacity="0.4"/>
+      <line x1="20" y1="20" x2="32" y2="28" stroke="#6aeae0" stroke-width="0.6" opacity="0.4"/>
+      <line x1="10" y1="12" x2="8" y2="22" stroke="#b8a0ff" stroke-width="0.4" opacity="0.3"/>
+      <line x1="32" y1="28" x2="28" y2="34" stroke="#7850ff" stroke-width="0.4" opacity="0.3"/>
+    </svg>
+    <span class="home-logo-text">DA</span>
+  </div>
+
   <div id="mode-switch">
     <button class="mode-btn active" data-mode="syllabus" data-i18n-ja="授業ネットワーク" data-i18n-en="Course Network">授業ネットワーク</button>
     <button class="mode-btn" data-mode="researcher" data-i18n-ja="研究業績ネットワーク" data-i18n-en="Research Network">研究業績ネットワーク</button>
@@ -49,7 +74,7 @@
     <ul id="search-suggestions"></ul>
   </div>
 
-  <!-- Syllabus info panel -->
+  <!-- Faculty / syllabus info panel -->
   <div id="info-panel" class="panel hidden">
     <div class="panel-header">
       <h2 id="panel-title"></h2>
@@ -59,31 +84,17 @@
       </div>
     </div>
     <p id="panel-title-en" class="subtitle"></p>
-    <p id="panel-subtitle" class="course-subtitle"></p>
     <div class="meta">
-      <span id="panel-semester" class="tag"></span>
-      <span id="panel-day" class="tag"></span>
+      <span id="panel-affiliation" class="tag"></span>
+      <span id="panel-rank" class="tag"></span>
       <span id="panel-cluster" class="tag cluster-tag"></span>
     </div>
-    <div id="panel-instructors" class="instructors"></div>
-    <h3 class="section-label" data-i18n-ja="授業の目的と概要" data-i18n-en="Course Objective">授業の目的と概要</h3>
-    <p id="panel-objective" class="objective"></p>
-    <h3 class="section-label" data-i18n-ja="学習目標" data-i18n-en="Learning Goals">学習目標</h3>
-    <p id="panel-goals" class="objective"></p>
-    <h3 class="section-label" data-i18n-ja="関連科目" data-i18n-en="Related Courses">関連科目</h3>
+    <div id="panel-crosslink" class="crosslink"></div>
+    <h3 class="section-label" data-i18n-ja="担当科目" data-i18n-en="Courses Taught">担当科目</h3>
+    <p id="panel-course-count" class="subtitle"></p>
+    <ul id="panel-courses" class="instr-course-list"></ul>
+    <h3 class="section-label" data-i18n-ja="関連する教員" data-i18n-en="Related Faculty">関連する教員</h3>
     <ul id="panel-related" class="related-list"></ul>
-  </div>
-
-  <!-- Instructor panel -->
-  <div id="instructor-panel" class="panel hidden">
-    <div class="panel-header">
-      <h2 id="instr-panel-name"></h2>
-      <button id="instr-panel-close">&times;</button>
-    </div>
-    <p id="instr-panel-count" class="subtitle"></p>
-    <div id="instr-panel-crosslink" class="crosslink"></div>
-    <h3 class="section-label" data-i18n-ja="担当科目一覧" data-i18n-en="Courses Taught">担当科目一覧</h3>
-    <ul id="instr-panel-list" class="instr-course-list"></ul>
   </div>
 
   <!-- Researcher panel -->
