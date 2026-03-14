@@ -161,7 +161,7 @@
     layoutMode = "umap"; layoutTransition = 1; alpha = 0.01;
     selectedNode = null; hoveredNode = null; activeCluster = null;
     dragging = false;
-    highlightedNodes = new Set(); edgeParticles.length = 0;
+    highlightedNodes = new Set();
     searchInput.value = "";
     suggestions.classList.remove("active");
     hidePanel(); hideInstructorPanel(); hideResearcherPanel();
@@ -584,11 +584,12 @@
     panelCluster.style.color = `hsl(${clusterColors[n.cluster]},70%,65%)`;
 
     // Cross-link to researcher network
-    if (researcherNameToId[n.label]) {
+    const researcherId = researcherNameToId[n.label.trim()];
+    if (researcherId) {
       const linkText = t("研究業績ネットワークで見る", "View in Research Network");
       panelCrosslink.innerHTML = `<button class="crosslink-btn">&#8594; ${escapeHtml(linkText)}</button>`;
       panelCrosslink.querySelector("button").addEventListener("click", async () => {
-        const rid = researcherNameToId[n.label];
+        const rid = researcherId;
         hidePanel();
         await loadDataset("researcher");
         const rn = nodes[idToIndex.get(rid)];
@@ -610,7 +611,12 @@
     panelRelated.innerHTML = related.map((r) => {
       const rn = nodes[idToIndex.get(r.id)]; if (!rn) return "";
       const name = isEn ? (rn.label_en || rn.label) : rn.label;
-      return `<li data-id="${r.id}">${escapeHtml(name)}<span class="rel-score">${Math.round(r.weight*100)}%</span></li>`;
+      // Find shared topics between this faculty and related faculty
+      const reason = getRelationReason(n, rn, isEn);
+      return `<li data-id="${r.id}">
+        <div>${escapeHtml(name)}<span class="rel-score">${Math.round(r.weight*100)}%</span></div>
+        ${reason ? `<div class="rel-reason">${escapeHtml(reason)}</div>` : ""}
+      </li>`;
     }).join("");
     panelRelated.querySelectorAll("li").forEach((li) => {
       li.addEventListener("click", () => {
@@ -678,7 +684,11 @@
     resPanelRelated.innerHTML = related.map((r) => {
       const rn = nodes[idToIndex.get(r.id)]; if (!rn) return "";
       const name = isEn ? (rn.label_en || rn.label) : rn.label;
-      return `<li data-id="${r.id}">${escapeHtml(name)}<span class="rel-score">${Math.round(r.weight*100)}%</span></li>`;
+      const reason = getRelationReason(n, rn, isEn);
+      return `<li data-id="${r.id}">
+        <div>${escapeHtml(name)}<span class="rel-score">${Math.round(r.weight*100)}%</span></div>
+        ${reason ? `<div class="rel-reason">${escapeHtml(reason)}</div>` : ""}
+      </li>`;
     }).join("");
     resPanelRelated.querySelectorAll("li").forEach((li) => {
       li.addEventListener("click", () => {
@@ -754,19 +764,41 @@
   }
 
   // ===== Edge flow particles =====
-  const edgeParticles = [];
-  let epFrame = 0;
+  // ===== Relation reason extraction =====
+  function getRelationReason(nodeA, nodeB, isEn) {
+    if (currentDatasetKey === "syllabus") {
+      // Compare course subtitles to find shared topics
+      const subsA = (nodeA.courses || []).map((c) => isEn ? (c.subtitle_en || c.subtitle || "") : (c.subtitle || "")).filter(Boolean);
+      const subsB = (nodeB.courses || []).map((c) => isEn ? (c.subtitle_en || c.subtitle || "") : (c.subtitle || "")).filter(Boolean);
 
-  function spawnEdgeParticles() {
-    if (!selectedNode || edgeParticles.length > 30) return;
-    const adj = adjacency.get(selectedNode.id) || [];
-    for (const r of adj.slice(0, 4)) {
-      const rn = nodes[idToIndex.get(r.id)]; if (!rn) continue;
-      edgeParticles.push({
-        sx: selectedNode.x, sy: selectedNode.y,
-        tx: rn.x, ty: rn.y, t: 0, speed: 0.0015 + Math.random() * 0.002,
-        hue: clusterColors[selectedNode.cluster] || 200,
-      });
+      // Check if same cluster
+      const sameCluster = nodeA.cluster === nodeB.cluster;
+      const clusterName = clusterLabels[nodeA.cluster] || "";
+
+      // Find keyword overlap from subtitles
+      const wordsA = new Set(subsA.join(" ").split(/[\s、,・／/()（）]+/).filter((w) => w.length >= 2));
+      const wordsB = new Set(subsB.join(" ").split(/[\s、,・／/()（）]+/).filter((w) => w.length >= 2));
+      const shared = [...wordsA].filter((w) => wordsB.has(w)).slice(0, 3);
+
+      const parts = [];
+      if (sameCluster && clusterName) parts.push(isEn ? `Same topic: ${clusterName}` : `同分野: ${clusterName}`);
+      if (shared.length > 0) parts.push((isEn ? "Shared: " : "共通: ") + shared.join(", "));
+      return parts.join(" | ") || (sameCluster ? (isEn ? `Same topic cluster` : `同じトピッククラスタ`) : "");
+    } else {
+      // Researcher mode: compare top_titles keywords
+      const titlesA = (nodeA.top_titles || []);
+      const titlesB = (nodeB.top_titles || []);
+      const sameCluster = nodeA.cluster === nodeB.cluster;
+      const clusterName = clusterLabels[nodeA.cluster] || "";
+
+      const wordsA = new Set(titlesA.join(" ").split(/[\s、,・／/()（）「」『』：:]+/).filter((w) => w.length >= 2));
+      const wordsB = new Set(titlesB.join(" ").split(/[\s、,・／/()（）「」『』：:]+/).filter((w) => w.length >= 2));
+      const shared = [...wordsA].filter((w) => wordsB.has(w)).slice(0, 3);
+
+      const parts = [];
+      if (sameCluster && clusterName) parts.push(isEn ? `Same field: ${clusterName}` : `同分野: ${clusterName}`);
+      if (shared.length > 0) parts.push((isEn ? "Shared: " : "共通: ") + shared.join(", "));
+      return parts.join(" | ") || (sameCluster ? (isEn ? `Same topic cluster` : `同じトピッククラスタ`) : "");
     }
   }
 
@@ -853,26 +885,6 @@
         ctx.lineWidth = 0.3 + e.weight * 1.0;
       }
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-
-    // ===== Edge flow particles =====
-    if (++epFrame % 120 === 0) spawnEdgeParticles();
-    for (let i = edgeParticles.length - 1; i >= 0; i--) {
-      const p = edgeParticles[i];
-      p.t += p.speed;
-      if (p.t > 1) { edgeParticles.splice(i, 1); continue; }
-      const x = p.sx + (p.tx - p.sx) * p.t;
-      const y = p.sy + (p.ty - p.sy) * p.t;
-      const alpha = Math.sin(p.t * Math.PI) * 0.8;
-      const size = 1.5 + Math.sin(p.t * Math.PI) * 1.5;
-      ctx.fillStyle = `hsla(${p.hue},80%,70%,${alpha})`;
-      ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.fill();
-      // Trail
-      const tx2 = p.sx + (p.tx - p.sx) * Math.max(0, p.t - 0.05);
-      const ty2 = p.sy + (p.ty - p.sy) * Math.max(0, p.t - 0.05);
-      ctx.strokeStyle = `hsla(${p.hue},60%,60%,${alpha * 0.3})`;
-      ctx.lineWidth = 0.8;
-      ctx.beginPath(); ctx.moveTo(tx2, ty2); ctx.lineTo(x, y); ctx.stroke();
     }
 
     // ===== Ripples =====
