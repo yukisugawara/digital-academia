@@ -227,7 +227,32 @@
     b.addEventListener("click", async () => {
       if (b.dataset.mode !== currentDatasetKey) {
         try {
+          // Remember selected person before switching
+          const prevSelected = selectedNode;
+          const prevName = prevSelected ? prevSelected.label.trim() : null;
+          const prevId = prevSelected ? prevSelected.id : null;
+
           await loadDataset(b.dataset.mode);
+
+          // Try to find the same person in the new network
+          if (prevName || prevId) {
+            let targetNode = null;
+            // Match by sid first, then by name
+            if (prevId && idToIndex.has(prevId)) {
+              targetNode = nodes[idToIndex.get(prevId)];
+            }
+            if (!targetNode && prevName) {
+              targetNode = nodes.find((n) => n.label.trim() === prevName);
+            }
+            if (targetNode) {
+              selectedNode = targetNode;
+              highlightedNodes = new Set([targetNode.id]);
+              highlightPulse = 0;
+              if (currentDatasetKey === "researcher") showResearcherPanel(targetNode);
+              else showPanel(targetNode);
+              setTimeout(() => animateCameraTo(targetNode.x, targetNode.y, 1.2), 100);
+            }
+          }
         } catch (err) {
           console.error("Failed to switch dataset:", err);
         }
