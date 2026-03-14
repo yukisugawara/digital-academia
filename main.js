@@ -328,6 +328,7 @@
     e.preventDefault();
     if (e.changedTouches.length === 1 && Date.now() - mouseDownTime < 300 && touchDraggedNode) {
       selectedNode = touchDraggedNode;
+      highlightedNodes = new Set([touchDraggedNode.id]); highlightPulse = 0;
       if (currentDatasetKey === "researcher") showResearcherPanel(touchDraggedNode);
       else showPanel(touchDraggedNode);
     } else if (e.changedTouches.length === 1 && Date.now() - mouseDownTime < 300 && !touchDraggedNode) {
@@ -337,10 +338,11 @@
       const clicked = findNode(mx, my);
       if (clicked) {
         selectedNode = clicked;
+        highlightedNodes = new Set([clicked.id]); highlightPulse = 0;
         if (currentDatasetKey === "researcher") showResearcherPanel(clicked);
         else showPanel(clicked);
       } else {
-        selectedNode = null; hidePanel(); hideResearcherPanel();
+        selectedNode = null; highlightedNodes.clear(); hidePanel(); hideResearcherPanel();
       }
     }
     touchDraggedNode = null;
@@ -386,8 +388,8 @@
     dragging = false;
 
     if (wasNodeDrag && Date.now() - mouseDownTime < 200) {
-      // Short click on node = select, not drag
       selectedNode = draggedNode;
+      highlightedNodes = new Set([draggedNode.id]); highlightPulse = 0;
       if (currentDatasetKey === "researcher") showResearcherPanel(draggedNode);
       else showPanel(draggedNode);
     } else if (!wasNodeDrag && !wasDragging) {
@@ -398,9 +400,10 @@
       const clicked = findNode(mx, my);
       if (clicked) {
         selectedNode = clicked;
+        highlightedNodes = new Set([clicked.id]); highlightPulse = 0;
         if (currentDatasetKey === "researcher") showResearcherPanel(clicked);
         else showPanel(clicked);
-      } else { selectedNode = null; hidePanel(); hideResearcherPanel(); }
+      } else { selectedNode = null; highlightedNodes.clear(); hidePanel(); hideResearcherPanel(); }
     }
     draggedNode = null;
   });
