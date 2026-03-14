@@ -17,7 +17,8 @@
     if (langBtn) langBtn.textContent = lang === "en" ? "JA" : "EN";
   }
 
-  document.getElementById("lang-toggle").addEventListener("click", () => {
+  const langToggleBtn = document.getElementById("lang-toggle");
+  if (langToggleBtn) langToggleBtn.addEventListener("click", () => {
     lang = lang === "ja" ? "en" : "ja";
     localStorage.setItem("da-lang", lang);
     applyLang();
@@ -127,10 +128,12 @@
     clusterColors = [];
     for (let i = 0; i < N_CLUSTERS; i++) clusterColors.push((i * 360 / N_CLUSTERS + 200) % 360);
 
-    const SYLLABUS_LABELS_JA = { 0:"美術史・考古学・歴史資料",1:"修士論文指導・研究指導",2:"欧米文学・思想テクスト講読",3:"言語学・統語論・意味論",4:"異文化理解・人文学基礎",5:"中央・南・東南アジア地域研究",6:"外国語教育・言語習得",7:"音楽学・演劇・芸術表現",8:"科学技術倫理・学術発表・フランス語",9:"研究セミナー・論文執筆",10:"美学・美術批評・視覚文化",11:"スペイン語・ポルトガル語・イタリア語圏",12:"東アジア言語文化・漢籍・朝鮮語学",13:"中国文学・語学・中国史",14:"フランス語圏文学・文化",15:"演劇・社会問題・パフォーマンス",16:"西洋古代・中世史・英語圏文学",17:"臨床哲学・倫理学・ケア",18:"ドイツ・北欧地域研究",19:"日本語教育・日本文化研究" };
-    const SYLLABUS_LABELS_EN = { 0:"Art History / Archaeology",1:"Thesis Supervision",2:"Western Literature & Philosophy",3:"Linguistics / Syntax / Semantics",4:"Intercultural Studies / Humanities",5:"Central / South / Southeast Asian Studies",6:"Foreign Language Education",7:"Musicology / Theater / Performing Arts",8:"STS / Academic Presentation / French",9:"Research Seminars / Academic Writing",10:"Aesthetics / Art Criticism / Visual Culture",11:"Spanish / Portuguese / Italian Studies",12:"East Asian Languages / Chinese Classics / Korean",13:"Chinese Literature / Linguistics / History",14:"Francophone Literature & Culture",15:"Theater / Social Issues / Performance",16:"Western Ancient & Medieval History / English Lit.",17:"Clinical Philosophy / Ethics / Care",18:"German & Northern European Studies",19:"Japanese Language Education & Cultural Studies" };
-    const RESEARCHER_LABELS_JA = { 0:"臨床哲学・医療倫理",1:"文学研究・比較文化",2:"英米文学・哲学・演劇",3:"フランス文学・西洋古代史",4:"臨床哲学・ケアの倫理・対話",5:"言語学・音韻論・言語教育",6:"イベリア半島地域研究",7:"言語学・文法・フランス語学",8:"ペルシア語・ロシア語・中東研究",9:"文化人類学・地域社会・グローバル研究",10:"東洋学・仏教学・東南アジア",11:"近現代国際関係・移民・異文化交流",12:"中国学・東洋史・漢文",13:"近現代国際政治外交史",14:"デジタル人文学・言語教育・教育実践" };
-    const RESEARCHER_LABELS_EN = { 0:"Clinical Philosophy / Medical Ethics",1:"Literary Studies / Comparative Culture",2:"English & American Lit. / Philosophy / Drama",3:"French Literature / Western Ancient History",4:"Clinical Philosophy / Ethics of Care / Dialogue",5:"Linguistics / Phonology / Language Education",6:"Iberian Peninsula Studies",7:"Linguistics / Grammar / French Linguistics",8:"Persian / Russian / Middle Eastern Studies",9:"Cultural Anthropology / Community / Global Studies",10:"Oriental Studies / Buddhism / Southeast Asia",11:"Modern International Relations / Migration",12:"Chinese Studies / Eastern History",13:"Modern International Political & Diplomatic History",14:"Digital Humanities / Language Education" };
+    // Syllabus: 13 clusters
+    const SYLLABUS_LABELS_JA = { 0:"ドイツ・北欧地域研究",1:"研究セミナー・論文執筆・芸術表現",2:"インド・仏教・南アジア研究",3:"美学・美術批評・視覚文化",4:"異文化理解・人文学基礎",5:"中国文学・語学・中国史",6:"修士論文指導・日本語教育・日本文化",7:"西洋文学・中央アジア・東南アジア地域研究",8:"スペイン語・ポルトガル語圏・フランス文学",9:"臨床哲学・倫理学・科学技術社会論",10:"中央ユーラシア・東アジア古典文献",11:"東アジア言語文化・朝鮮語学・歴史",12:"外国語教育・言語学・言語習得" };
+    const SYLLABUS_LABELS_EN = { 0:"German & Northern European Studies",1:"Research Seminars / Academic Writing / Arts",2:"Indian / Buddhist / South Asian Studies",3:"Aesthetics / Art Criticism / Visual Culture",4:"Intercultural Studies / Humanities",5:"Chinese Literature / Linguistics / History",6:"Thesis Supervision / Japanese Lang. Education",7:"Western Literature / Central & SE Asian Studies",8:"Iberian Languages / Francophone Literature",9:"Clinical Philosophy / Ethics / STS",10:"Central Eurasian / East Asian Classical Texts",11:"East Asian Languages / Korean / History",12:"Foreign Language Education / Linguistics" };
+    // Researcher: 8 clusters
+    const RESEARCHER_LABELS_JA = { 0:"文学研究・比較文化・言語学",1:"英米文学・哲学・演劇",2:"言語学・教育実践・デジタル人文学",3:"近現代国際関係・移民・異文化交流",4:"東洋学・仏教学・中東・南アジア",5:"中国学・東洋史・漢文",6:"臨床哲学・ケアの倫理・対話",7:"フランス文学・西洋古代史・法制史" };
+    const RESEARCHER_LABELS_EN = { 0:"Literary Studies / Comparative Culture / Linguistics",1:"English & American Lit. / Philosophy / Drama",2:"Linguistics / Educational Practice / Digital Humanities",3:"Modern International Relations / Migration",4:"Oriental Studies / Buddhism / Middle East & South Asia",5:"Chinese Studies / Eastern History",6:"Clinical Philosophy / Ethics of Care / Dialogue",7:"French Literature / Western Ancient History / Legal History" };
 
     // Store all label sets for language switching
     const labelsJa = ds.type === "syllabus" ? SYLLABUS_LABELS_JA : RESEARCHER_LABELS_JA;
