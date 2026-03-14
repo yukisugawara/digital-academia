@@ -664,7 +664,43 @@
     }
   }
 
-  // ===== Drawing (feature 8: edge thickness) =====
+  // ===== Ambient particles =====
+  const ambientParticles = [];
+  for (let i = 0; i < 60; i++) {
+    ambientParticles.push({
+      x: (Math.random() - 0.5) * 2000, y: (Math.random() - 0.5) * 2000,
+      vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+      size: 0.5 + Math.random() * 1.5, phase: Math.random() * Math.PI * 2,
+      hue: 200 + Math.random() * 160,
+    });
+  }
+
+  // ===== Edge flow particles =====
+  const edgeParticles = [];
+  let epFrame = 0;
+
+  function spawnEdgeParticles() {
+    if (!selectedNode || edgeParticles.length > 80) return;
+    const adj = adjacency.get(selectedNode.id) || [];
+    for (const r of adj.slice(0, 8)) {
+      const rn = nodes[idToIndex.get(r.id)]; if (!rn) continue;
+      edgeParticles.push({
+        sx: selectedNode.x, sy: selectedNode.y,
+        tx: rn.x, ty: rn.y, t: 0, speed: 0.008 + Math.random() * 0.012,
+        hue: clusterColors[selectedNode.cluster] || 200,
+      });
+    }
+  }
+
+  // ===== Ripple effect =====
+  const ripples = [];
+  function addRipple(x, y, hue) {
+    ripples.push({ x, y, r: 0, maxR: 60, hue, alpha: 0.5 });
+  }
+
+  // ===== Drawing =====
+  let frameTime = 0;
+
   function getNodeColor(n, isActive) {
     const hue = clusterColors[n.cluster] || 200;
     return isActive ? `hsla(${hue},80%,70%,0.95)` : `hsla(${hue},65%,55%,0.85)`;
@@ -674,7 +710,15 @@
   }
 
   function draw() {
+    frameTime += 0.016;
     ctx.clearRect(0, 0, W, H);
+
+    // Background subtle gradient
+    const bgGrad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H) * 0.7);
+    bgGrad.addColorStop(0, "rgba(15,12,30,1)");
+    bgGrad.addColorStop(1, "rgba(10,10,20,1)");
+    ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
+
     ctx.save();
     ctx.translate(W / 2, H / 2);
     ctx.scale(camZoom, camZoom);
@@ -682,7 +726,39 @@
     highlightPulse += 0.04;
     const clusterDim = activeCluster !== null;
 
-    // Edges with variable thickness (feature 8)
+    // ===== Ambient particles =====
+    for (const p of ambientParticles) {
+      p.x += p.vx; p.y += p.vy; p.phase += 0.02;
+      if (p.x > 1200) p.x = -1200; if (p.x < -1200) p.x = 1200;
+      if (p.y > 1200) p.y = -1200; if (p.y < -1200) p.y = 1200;
+      const alpha = 0.15 + 0.1 * Math.sin(p.phase);
+      ctx.fillStyle = `hsla(${p.hue},60%,60%,${alpha})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // ===== Cluster auras =====
+    if (!clusterDim && camZoom < 1.5) {
+      const clusterCenters = {};
+      for (const n of nodes) {
+        if (!clusterCenters[n.cluster]) clusterCenters[n.cluster] = { x: 0, y: 0, count: 0 };
+        clusterCenters[n.cluster].x += n.x;
+        clusterCenters[n.cluster].y += n.y;
+        clusterCenters[n.cluster].count++;
+      }
+      for (const c in clusterCenters) {
+        const cc = clusterCenters[c];
+        cc.x /= cc.count; cc.y /= cc.count;
+        const hue = clusterColors[c] || 200;
+        const auraR = 80 + cc.count * 2;
+        const pulse = 0.5 + 0.15 * Math.sin(frameTime * 0.8 + parseInt(c));
+        const grad = ctx.createRadialGradient(cc.x, cc.y, 0, cc.x, cc.y, auraR);
+        grad.addColorStop(0, `hsla(${hue},50%,40%,${0.04 * pulse})`);
+        grad.addColorStop(1, "transparent");
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cc.x, cc.y, auraR, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    // ===== Edges =====
     for (const e of edgeIndices) {
       if (e.si === undefined || e.ti === undefined) continue;
       const a = nodes[e.si], b = nodes[e.ti];
@@ -690,7 +766,8 @@
       const isSelected = selectedNode && (a.id === selectedNode.id || b.id === selectedNode.id);
       const isSearchHit = highlightedNodes.size > 0 && (highlightedNodes.has(a.id) || highlightedNodes.has(b.id));
       if (isSelected || isSearchHit) {
-        ctx.strokeStyle = `rgba(160,120,255,${0.3 + e.weight * 0.5})`;
+        const pulse = 0.7 + 0.3 * Math.sin(frameTime * 3 + e.weight * 10);
+        ctx.strokeStyle = `rgba(160,120,255,${(0.3 + e.weight * 0.5) * pulse})`;
         ctx.lineWidth = 0.5 + e.weight * 2.5;
       } else {
         const dim = clusterDim ? 0.03 : 1;
@@ -700,13 +777,46 @@
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     }
 
-    // Nodes
+    // ===== Edge flow particles =====
+    if (++epFrame % 20 === 0) spawnEdgeParticles();
+    for (let i = edgeParticles.length - 1; i >= 0; i--) {
+      const p = edgeParticles[i];
+      p.t += p.speed;
+      if (p.t > 1) { edgeParticles.splice(i, 1); continue; }
+      const x = p.sx + (p.tx - p.sx) * p.t;
+      const y = p.sy + (p.ty - p.sy) * p.t;
+      const alpha = Math.sin(p.t * Math.PI) * 0.8;
+      const size = 1.5 + Math.sin(p.t * Math.PI) * 1.5;
+      ctx.fillStyle = `hsla(${p.hue},80%,70%,${alpha})`;
+      ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.fill();
+      // Trail
+      const tx2 = p.sx + (p.tx - p.sx) * Math.max(0, p.t - 0.05);
+      const ty2 = p.sy + (p.ty - p.sy) * Math.max(0, p.t - 0.05);
+      ctx.strokeStyle = `hsla(${p.hue},60%,60%,${alpha * 0.3})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(tx2, ty2); ctx.lineTo(x, y); ctx.stroke();
+    }
+
+    // ===== Ripples =====
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      const rp = ripples[i];
+      rp.r += 1.5; rp.alpha -= 0.008;
+      if (rp.alpha <= 0) { ripples.splice(i, 1); continue; }
+      ctx.strokeStyle = `hsla(${rp.hue},70%,60%,${rp.alpha})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // ===== Nodes =====
     const active = hoveredNode || selectedNode;
+    const breathe = Math.sin(frameTime * 1.5) * 0.08;
     for (const n of nodes) {
-      const r = nodeRadius(n);
+      const baseR = nodeRadius(n);
+      const r = baseR * (1 + breathe * (0.5 + n.degree * 0.05));
       const isActive = active && n.id === active.id;
       const isSearchHit = highlightedNodes.has(n.id);
       const isDimmed = clusterDim && n.cluster !== activeCluster && !isActive && !isSearchHit;
+      const hue = clusterColors[n.cluster] || 200;
 
       if (isSearchHit) {
         const pulse = 0.5 + 0.5 * Math.sin(highlightPulse);
@@ -717,33 +827,68 @@
         grad.addColorStop(1, "transparent");
         ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = `hsla(45,100%,75%,0.95)`; ctx.beginPath(); ctx.arc(n.x, n.y, r * 1.5, 0, Math.PI * 2); ctx.fill();
-        if (currentDatasetKey === "researcher") { ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = 'bold 11px "Hiragino Sans",sans-serif'; ctx.textAlign = "center"; ctx.fillText(lang === "en" ? (n.label_en || n.label) : n.label, n.x, n.y - r * 1.5 - 6); }
+        // Label
+        ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = 'bold 11px "Hiragino Sans",sans-serif'; ctx.textAlign = "center";
+        ctx.fillText(lang === "en" ? (n.label_en || n.label) : n.label, n.x, n.y - r * 1.5 - 6);
         continue;
       }
-      if (isDimmed) { ctx.fillStyle = "rgba(60,55,80,0.25)"; ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.7, 0, Math.PI * 2); ctx.fill(); continue; }
-
-      if (isActive || n.degree > 5) {
-        const grad = ctx.createRadialGradient(n.x, n.y, r * 0.5, n.x, n.y, r * (isActive ? 5 : 3));
-        grad.addColorStop(0, getGlowColor(n)); grad.addColorStop(1, "transparent");
-        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(n.x, n.y, r * (isActive ? 5 : 3), 0, Math.PI * 2); ctx.fill();
+      if (isDimmed) {
+        ctx.fillStyle = "rgba(60,55,80,0.25)"; ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.7, 0, Math.PI * 2); ctx.fill();
+        continue;
       }
-      ctx.fillStyle = getNodeColor(n, isActive); ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fill();
+
+      // Outer glow
+      if (isActive || n.degree > 5) {
+        const glowMul = isActive ? 6 : 3;
+        const grad = ctx.createRadialGradient(n.x, n.y, r * 0.5, n.x, n.y, r * glowMul);
+        grad.addColorStop(0, `hsla(${hue},80%,60%,${isActive ? 0.4 : 0.2})`);
+        grad.addColorStop(1, "transparent");
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(n.x, n.y, r * glowMul, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Node body with inner gradient
+      const ng = ctx.createRadialGradient(n.x - r * 0.3, n.y - r * 0.3, 0, n.x, n.y, r);
+      ng.addColorStop(0, `hsla(${hue},80%,75%,0.95)`);
+      ng.addColorStop(1, `hsla(${hue},65%,50%,0.85)`);
+      ctx.fillStyle = isActive ? ng : getNodeColor(n, false);
+      ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fill();
+
+      // Rim light
+      if (isActive) {
+        ctx.strokeStyle = `hsla(${hue},80%,70%,0.6)`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(n.x, n.y, r + 1.5, 0, Math.PI * 2); ctx.stroke();
+      }
 
       // Labels
-      if (currentDatasetKey === "researcher") {
-        if (camZoom > 0.6 || isActive) {
-          const op = isActive ? 0.95 : Math.min(0.75, (camZoom - 0.4) * 1.5);
-          if (op > 0) { ctx.fillStyle = `rgba(255,255,255,${op})`; ctx.font = `${Math.max(7, Math.min(11, 9 / Math.sqrt(camZoom)))}px "Hiragino Sans",sans-serif`; ctx.textAlign = "center"; ctx.fillText(lang === "en" ? (n.label_en || n.label) : n.label, n.x, n.y - r - 4); }
-        }
-      } else if (camZoom > 0.6 || isActive) {
+      if (camZoom > 0.6 || isActive) {
         const lbl = (lang === "en" ? (n.label_en || n.label) : n.label).slice(0, 15);
-        ctx.fillStyle = `rgba(255,255,255,${Math.min(0.8, (camZoom - 1) * 0.8)})`;
-        ctx.font = `${Math.max(8, 10 / camZoom * 1.2)}px "Hiragino Sans",sans-serif`; ctx.textAlign = "center";
-        ctx.fillText(lbl, n.x, n.y - r - 4);
+        const op = isActive ? 0.95 : Math.min(0.75, (camZoom - 0.4) * 1.5);
+        if (op > 0) {
+          ctx.fillStyle = `rgba(255,255,255,${op})`;
+          const fs = Math.max(7, Math.min(11, 9 / Math.sqrt(camZoom)));
+          ctx.font = `${isActive ? "bold " : ""}${fs}px "Hiragino Sans",sans-serif`;
+          ctx.textAlign = "center";
+          // Text shadow
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 4;
+          ctx.fillText(lbl, n.x, n.y - r - 5);
+          ctx.restore();
+        }
       }
     }
     ctx.restore();
   }
+
+  // Add ripple on node selection
+  const origSelectSearchResult = selectSearchResult;
+  // Patch: add ripple when clicking nodes
+  canvas.addEventListener("mouseup", () => {
+    if (hoveredNode) addRipple(hoveredNode.x, hoveredNode.y, clusterColors[hoveredNode.cluster] || 200);
+  }, true);
+  canvas.addEventListener("touchend", () => {
+    if (selectedNode) addRipple(selectedNode.x, selectedNode.y, clusterColors[selectedNode.cluster] || 200);
+  }, true);
 
   // ===== Minimap (feature 2) =====
   const minimap = document.getElementById("minimap");
