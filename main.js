@@ -268,7 +268,11 @@
   }
   document.getElementById("home-btn").addEventListener("click", resetView);
   const homeLogo = document.getElementById("home-logo");
-  if (homeLogo) homeLogo.addEventListener("click", resetView);
+  if (homeLogo) homeLogo.addEventListener("click", () => {
+    // Return to auth/start screen
+    sessionStorage.removeItem("da-auth");
+    window.location.reload();
+  });
 
   // ===== Touch support (feature 10) =====
   let touches = [];
