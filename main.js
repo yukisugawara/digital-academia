@@ -758,13 +758,13 @@
   let epFrame = 0;
 
   function spawnEdgeParticles() {
-    if (!selectedNode || edgeParticles.length > 80) return;
+    if (!selectedNode || edgeParticles.length > 30) return;
     const adj = adjacency.get(selectedNode.id) || [];
-    for (const r of adj.slice(0, 8)) {
+    for (const r of adj.slice(0, 4)) {
       const rn = nodes[idToIndex.get(r.id)]; if (!rn) continue;
       edgeParticles.push({
         sx: selectedNode.x, sy: selectedNode.y,
-        tx: rn.x, ty: rn.y, t: 0, speed: 0.008 + Math.random() * 0.012,
+        tx: rn.x, ty: rn.y, t: 0, speed: 0.0015 + Math.random() * 0.002,
         hue: clusterColors[selectedNode.cluster] || 200,
       });
     }
@@ -773,7 +773,7 @@
   // ===== Ripple effect =====
   const ripples = [];
   function addRipple(x, y, hue) {
-    ripples.push({ x, y, r: 0, maxR: 60, hue, alpha: 0.5 });
+    ripples.push({ x, y, r: 0, maxR: 60, hue, alpha: 0.25 });
   }
 
   // ===== Drawing =====
@@ -801,7 +801,7 @@
     ctx.translate(W / 2, H / 2);
     ctx.scale(camZoom, camZoom);
     ctx.translate(camX, camY);
-    highlightPulse += 0.04;
+    highlightPulse += 0.015;
     const clusterDim = activeCluster !== null;
 
     // ===== Ambient particles =====
@@ -844,7 +844,7 @@
       const isSelected = selectedNode && (a.id === selectedNode.id || b.id === selectedNode.id);
       const isSearchHit = highlightedNodes.size > 0 && (highlightedNodes.has(a.id) || highlightedNodes.has(b.id));
       if (isSelected || isSearchHit) {
-        const pulse = 0.7 + 0.3 * Math.sin(frameTime * 3 + e.weight * 10);
+        const pulse = 0.8 + 0.2 * Math.sin(frameTime * 0.8 + e.weight * 5);
         ctx.strokeStyle = `rgba(160,120,255,${(0.3 + e.weight * 0.5) * pulse})`;
         ctx.lineWidth = 0.5 + e.weight * 2.5;
       } else {
@@ -856,7 +856,7 @@
     }
 
     // ===== Edge flow particles =====
-    if (++epFrame % 20 === 0) spawnEdgeParticles();
+    if (++epFrame % 120 === 0) spawnEdgeParticles();
     for (let i = edgeParticles.length - 1; i >= 0; i--) {
       const p = edgeParticles[i];
       p.t += p.speed;
@@ -878,7 +878,7 @@
     // ===== Ripples =====
     for (let i = ripples.length - 1; i >= 0; i--) {
       const rp = ripples[i];
-      rp.r += 1.5; rp.alpha -= 0.008;
+      rp.r += 0.4; rp.alpha -= 0.003;
       if (rp.alpha <= 0) { ripples.splice(i, 1); continue; }
       ctx.strokeStyle = `hsla(${rp.hue},70%,60%,${rp.alpha})`;
       ctx.lineWidth = 1;
@@ -895,11 +895,11 @@
       const hue = clusterColors[n.cluster] || 200;
 
       if (isSearchHit) {
-        const pulse = 0.5 + 0.5 * Math.sin(highlightPulse);
-        const glowR = r * (5 + pulse * 4);
+        const pulse = 0.7 + 0.3 * Math.sin(highlightPulse);
+        const glowR = r * (4 + pulse * 2);
         const grad = ctx.createRadialGradient(n.x, n.y, r, n.x, n.y, glowR);
-        grad.addColorStop(0, `hsla(45,100%,70%,${0.5+pulse*0.3})`);
-        grad.addColorStop(0.5, `hsla(45,100%,60%,${0.15+pulse*0.1})`);
+        grad.addColorStop(0, `hsla(45,90%,65%,${0.35+pulse*0.15})`);
+        grad.addColorStop(0.5, `hsla(45,80%,55%,${0.1+pulse*0.05})`);
         grad.addColorStop(1, "transparent");
         ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = `hsla(45,100%,75%,0.95)`; ctx.beginPath(); ctx.arc(n.x, n.y, r * 1.5, 0, Math.PI * 2); ctx.fill();
