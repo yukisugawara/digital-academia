@@ -94,6 +94,30 @@
       clusterColors.push((i * 360 / N_CLUSTERS + 200) % 360);
     }
 
+    // Predefined topic labels for syllabus clusters
+    const SYLLABUS_TOPIC_LABELS = {
+      0: "美術史・考古学・歴史資料",
+      1: "修士論文指導・研究指導",
+      2: "欧米文学・思想テクスト講読",
+      3: "言語学・統語論・意味論",
+      4: "異文化理解・人文学基礎",
+      5: "中央・南・東南アジア地域研究",
+      6: "外国語教育・言語習得",
+      7: "音楽学・演劇・芸術表現",
+      8: "科学技術倫理・学術発表・フランス語",
+      9: "研究セミナー・論文執筆",
+      10: "美学・美術批評・視覚文化",
+      11: "スペイン語・ポルトガル語・イタリア語圏",
+      12: "東アジア言語文化・漢籍・朝鮮語学",
+      13: "中国文学・語学・中国史",
+      14: "フランス語圏文学・文化",
+      15: "演劇・社会問題・パフォーマンス",
+      16: "西洋古代・中世史・英語圏文学",
+      17: "臨床哲学・倫理学・ケア",
+      18: "ドイツ・北欧地域研究",
+      19: "日本語教育・日本文化研究",
+    };
+
     clusterCounts = new Array(N_CLUSTERS).fill(0);
     clusterSamples = new Array(N_CLUSTERS).fill(null).map(() => []);
     nodes.forEach((n) => {
@@ -101,19 +125,21 @@
       if (c >= 0 && c < N_CLUSTERS) {
         clusterCounts[c]++;
         if (clusterSamples[c].length < 3) {
-          let sample;
-          if (ds.type === "researcher") {
-            sample = n.label || "";
-          } else {
-            sample = (n.subtitle || n.label || "").replace(/^\[科目\]/, "");
-          }
+          const sample = n.label || "";
           if (sample) clusterSamples[c].push(sample.slice(0, 20));
         }
       }
     });
-    clusterLabels = clusterSamples.map((samples, i) =>
-      samples.length > 0 ? samples.slice(0, 2).join(" / ") : `Topic ${i}`
-    );
+
+    if (ds.type === "syllabus") {
+      clusterLabels = Array.from({ length: N_CLUSTERS }, (_, i) =>
+        SYLLABUS_TOPIC_LABELS[i] || `Topic ${i}`
+      );
+    } else {
+      clusterLabels = clusterSamples.map((samples, i) =>
+        samples.length > 0 ? samples.slice(0, 2).join(" / ") : `Topic ${i}`
+      );
+    }
 
     // Instructor index (syllabus only)
     instructorMap = new Map();
