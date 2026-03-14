@@ -1,0 +1,15 @@
+# Data sources (large Excel files)
+data/
+Linfer/
+*.xlsx
+*.docx
+*.pdf
+*.csv
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# OS
+.DS_Store

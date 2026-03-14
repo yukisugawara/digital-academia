@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Syllabus &amp; Research Network</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Auth overlay -->
+  <div id="auth-overlay">
+    <div id="auth-box">
+      <h1>Syllabus &amp; Research Network</h1>
+      <p>閲覧にはパスワードが必要です</p>
+      <input type="password" id="auth-input" placeholder="パスワードを入力..." autocomplete="off">
+      <button id="auth-submit">入る</button>
+      <p id="auth-error" class="auth-error"></p>
+    </div>
+  </div>
+
+  <div id="app-content" style="display:none">
+  <canvas id="canvas"></canvas>
+
+  <div id="mode-switch">
+    <button class="mode-btn active" data-mode="syllabus">授業ネットワーク</button>
+    <button class="mode-btn" data-mode="researcher">研究業績ネットワーク</button>
+  </div>
+
+  <div id="search-box">
+    <input type="text" id="search-input" placeholder="検索..." autocomplete="off">
+    <ul id="search-suggestions"></ul>
+  </div>
+
+  <!-- Syllabus info panel -->
+  <div id="info-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2 id="panel-title"></h2>
+      <button id="panel-close">&times;</button>
+    </div>
+    <p id="panel-title-en" class="subtitle"></p>
+    <p id="panel-subtitle" class="course-subtitle"></p>
+    <div class="meta">
+      <span id="panel-semester" class="tag"></span>
+      <span id="panel-day" class="tag"></span>
+      <span id="panel-cluster" class="tag cluster-tag"></span>
+    </div>
+    <div id="panel-instructors" class="instructors"></div>
+    <h3 class="section-label">授業の目的と概要</h3>
+    <p id="panel-objective" class="objective"></p>
+    <h3 class="section-label">学習目標</h3>
+    <p id="panel-goals" class="objective"></p>
+    <h3 class="section-label">関連科目</h3>
+    <ul id="panel-related" class="related-list"></ul>
+  </div>
+
+  <!-- Instructor panel -->
+  <div id="instructor-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2 id="instr-panel-name"></h2>
+      <button id="instr-panel-close">&times;</button>
+    </div>
+    <p id="instr-panel-count" class="subtitle"></p>
+    <h3 class="section-label">担当科目一覧</h3>
+    <ul id="instr-panel-list" class="instr-course-list"></ul>
+  </div>
+
+  <!-- Researcher panel -->
+  <div id="researcher-panel" class="panel hidden">
+    <div class="panel-header">
+      <h2 id="res-panel-name"></h2>
+      <button id="res-panel-close">&times;</button>
+    </div>
+    <p id="res-panel-name-en" class="subtitle"></p>
+    <div class="meta">
+      <span id="res-panel-affiliation" class="tag"></span>
+      <span id="res-panel-rank" class="tag"></span>
+      <span id="res-panel-cluster" class="tag cluster-tag"></span>
+    </div>
+    <h3 class="section-label">研究業績数</h3>
+    <p id="res-panel-count" class="res-count"></p>
+    <h3 class="section-label">代表的な業績</h3>
+    <ul id="res-panel-titles" class="res-titles-list"></ul>
+    <h3 class="section-label">関連する研究者</h3>
+    <ul id="res-panel-related" class="related-list"></ul>
+  </div>
+
+  <div id="legend" class="legend-panel"></div>
+
+  <div id="controls">
+    <button id="toggle-layout" class="ctrl-btn">UMAP</button>
+    <input type="range" id="zoom-slider" min="0.05" max="3" step="0.05" value="1">
+    <span id="zoom-label">100%</span>
+  </div>
+
+  <!-- Startup animation -->
+  <div id="startup-overlay" style="display:none">
+    <div class="startup-particles" id="startup-particles"></div>
+    <div class="startup-title">Syllabus &amp; Research Network</div>
+    <div class="startup-sub">ネットワークを構築中...</div>
+    <div class="startup-line"></div>
+  </div>
+
+  </div><!-- /app-content -->
+
+  <script>
+  (function() {
+    const HASH = "b4642438cd75701ec0efedd59bcfda96a3c11d02123741e509ed46d1c49d90d0";
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+    const authOverlay = document.getElementById("auth-overlay");
+    const input = document.getElementById("auth-input");
+    const btn = document.getElementById("auth-submit");
+    const err = document.getElementById("auth-error");
+    const app = document.getElementById("app-content");
+    const startupOverlay = document.getElementById("startup-overlay");
+
+    // Check session
+    if (sessionStorage.getItem("da-auth") === "1") {
+      authOverlay.style.display = "none";
+      showStartupAndLoad();
+    }
+
+    async function tryAuth() {
+      const hash = await sha256(input.value);
+      if (hash === HASH) {
+        sessionStorage.setItem("da-auth", "1");
+        authOverlay.classList.add("fade-out");
+        setTimeout(() => {
+          authOverlay.style.display = "none";
+          showStartupAndLoad();
+        }, 800);
+      } else {
+        err.textContent = "パスワードが正しくありません";
+        input.value = "";
+        input.focus();
+      }
+    }
+
+    btn.addEventListener("click", tryAuth);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") tryAuth(); });
+
+    let appLoaded = false;
+    function showStartupAndLoad() {
+      if (appLoaded) return;
+      appLoaded = true;
+
+      // Show startup overlay with particles
+      startupOverlay.style.display = "flex";
+      spawnParticles();
+
+      // Load app in background
+      app.style.display = "block";
+      app.style.opacity = "0";
+      const s = document.createElement("script");
+      s.src = "main.js";
+      s.onload = () => {
+        // Wait for animation to play, then fade out startup
+        setTimeout(() => {
+          startupOverlay.classList.add("fade-out");
+          app.style.opacity = "1";
+          setTimeout(() => {
+            startupOverlay.style.display = "none";
+          }, 1200);
+        }, 2200);
+      };
+      document.body.appendChild(s);
+    }
+
+    function spawnParticles() {
+      const container = document.getElementById("startup-particles");
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement("div");
+        p.className = "startup-particle";
+        p.style.left = Math.random() * 100 + "%";
+        p.style.top = (60 + Math.random() * 40) + "%";
+        p.style.animationDelay = (Math.random() * 3) + "s";
+        p.style.animationDuration = (2 + Math.random() * 3) + "s";
+        const hue = 200 + Math.random() * 160;
+        p.style.background = `hsla(${hue}, 80%, 60%, ${0.3 + Math.random() * 0.5})`;
+        p.style.width = (2 + Math.random() * 3) + "px";
+        p.style.height = p.style.width;
+        container.appendChild(p);
+      }
+    }
+  })();
+  </script>
+</body>
+</html>
