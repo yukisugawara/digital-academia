@@ -169,8 +169,8 @@
     toggleBtn.textContent = "UMAP"; toggleBtn.classList.add("active");
     buildLegend(); updateModeButtons();
 
-    // Handle URL params after load
-    handleUrlParams();
+    // Clear URL params on dataset switch (not initial load)
+    updateUrl(null);
   }
 
   // ===== URL params (feature 9) =====
@@ -1081,9 +1081,11 @@
   // Initial load
   await preloadResearcherNames();
 
-  // Check URL params for initial mode
-  const urlMode = new URLSearchParams(window.location.search).get("mode");
+  // Initial load with URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlMode = urlParams.get("mode");
   await loadDataset(urlMode && DATASETS[urlMode] ? urlMode : "syllabus");
+  handleUrlParams(); // Only on initial load
   applyLang();
   loop();
 })();
