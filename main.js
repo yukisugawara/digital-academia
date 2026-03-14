@@ -131,13 +131,32 @@
       }
     });
 
+    // Predefined topic labels for researcher clusters
+    const RESEARCHER_TOPIC_LABELS = {
+      0: "臨床哲学・医療倫理",
+      1: "文学研究・比較文化",
+      2: "英米文学・哲学・演劇",
+      3: "フランス文学・西洋古代史",
+      4: "臨床哲学・ケアの倫理・対話",
+      5: "言語学・音韻論・言語教育",
+      6: "イベリア半島地域研究",
+      7: "言語学・文法・フランス語学",
+      8: "ペルシア語・ロシア語・中東研究",
+      9: "文化人類学・地域社会・グローバル研究",
+      10: "東洋学・仏教学・東南アジア",
+      11: "近現代国際関係・移民・異文化交流",
+      12: "中国学・東洋史・漢文",
+      13: "近現代国際政治外交史",
+      14: "デジタル人文学・言語教育・教育実践",
+    };
+
     if (ds.type === "syllabus") {
       clusterLabels = Array.from({ length: N_CLUSTERS }, (_, i) =>
         SYLLABUS_TOPIC_LABELS[i] || `Topic ${i}`
       );
     } else {
-      clusterLabels = clusterSamples.map((samples, i) =>
-        samples.length > 0 ? samples.slice(0, 2).join(" / ") : `Topic ${i}`
+      clusterLabels = Array.from({ length: N_CLUSTERS }, (_, i) =>
+        RESEARCHER_TOPIC_LABELS[i] || clusterSamples[i]?.slice(0, 2).join(" / ") || `Topic ${i}`
       );
     }
 
