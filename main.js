@@ -160,7 +160,8 @@
     camX = 0; camY = 0; camZoom = 1;
     layoutMode = "umap"; layoutTransition = 1; alpha = 0.01;
     selectedNode = null; hoveredNode = null; activeCluster = null;
-    highlightedNodes = new Set();
+    dragging = false;
+    highlightedNodes = new Set(); edgeParticles.length = 0;
     searchInput.value = "";
     suggestions.classList.remove("active");
     hidePanel(); hideInstructorPanel(); hideResearcherPanel();
@@ -223,8 +224,14 @@
     modeBtns.forEach((b) => b.classList.toggle("active", b.dataset.mode === currentDatasetKey));
   }
   modeBtns.forEach((b) => {
-    b.addEventListener("click", () => {
-      if (b.dataset.mode !== currentDatasetKey) loadDataset(b.dataset.mode);
+    b.addEventListener("click", async () => {
+      if (b.dataset.mode !== currentDatasetKey) {
+        try {
+          await loadDataset(b.dataset.mode);
+        } catch (err) {
+          console.error("Failed to switch dataset:", err);
+        }
+      }
     });
   });
 
@@ -268,14 +275,25 @@
   let lastPinchDist = 0;
   let touchPanStartX, touchPanStartY, touchCamStartX, touchCamStartY;
 
+  let touchDraggedNode = null;
+
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
     touches = Array.from(e.touches);
     if (touches.length === 1) {
-      touchPanStartX = touches[0].clientX; touchPanStartY = touches[0].clientY;
-      touchCamStartX = camX; touchCamStartY = camY;
+      const mx = (touches[0].clientX - W / 2) / camZoom - camX;
+      const my = (touches[0].clientY - H / 2) / camZoom - camY;
+      const hit = findNode(mx, my);
+      if (hit) {
+        touchDraggedNode = hit;
+      } else {
+        touchDraggedNode = null;
+        touchPanStartX = touches[0].clientX; touchPanStartY = touches[0].clientY;
+        touchCamStartX = camX; touchCamStartY = camY;
+      }
       mouseDownTime = Date.now();
     } else if (touches.length === 2) {
+      touchDraggedNode = null;
       lastPinchDist = Math.hypot(touches[1].clientX - touches[0].clientX, touches[1].clientY - touches[0].clientY);
     }
   }, { passive: false });
@@ -283,7 +301,12 @@
   canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
     const ts = Array.from(e.touches);
-    if (ts.length === 1) {
+    if (ts.length === 1 && touchDraggedNode) {
+      const mx = (ts[0].clientX - W / 2) / camZoom - camX;
+      const my = (ts[0].clientY - H / 2) / camZoom - camY;
+      touchDraggedNode.umapX = mx; touchDraggedNode.umapY = my;
+      touchDraggedNode._origX = mx; touchDraggedNode._origY = my;
+    } else if (ts.length === 1 && !touchDraggedNode) {
       camX = touchCamStartX + (ts[0].clientX - touchPanStartX) / camZoom;
       camY = touchCamStartY + (ts[0].clientY - touchPanStartY) / camZoom;
     } else if (ts.length === 2) {
@@ -299,7 +322,11 @@
 
   canvas.addEventListener("touchend", (e) => {
     e.preventDefault();
-    if (e.changedTouches.length === 1 && Date.now() - mouseDownTime < 300) {
+    if (e.changedTouches.length === 1 && Date.now() - mouseDownTime < 300 && touchDraggedNode) {
+      selectedNode = touchDraggedNode;
+      if (currentDatasetKey === "researcher") showResearcherPanel(touchDraggedNode);
+      else showPanel(touchDraggedNode);
+    } else if (e.changedTouches.length === 1 && Date.now() - mouseDownTime < 300 && !touchDraggedNode) {
       const t = e.changedTouches[0];
       const mx = (t.clientX - W / 2) / camZoom - camX;
       const my = (t.clientY - H / 2) / camZoom - camY;
@@ -312,28 +339,56 @@
         selectedNode = null; hidePanel(); hideResearcherPanel();
       }
     }
+    touchDraggedNode = null;
     touches = Array.from(e.touches);
     lastPinchDist = 0;
   }, { passive: false });
 
-  // ===== Mouse pan & click =====
+  // ===== Mouse pan, click & node drag =====
+  let draggedNode = null;
+
   canvas.addEventListener("mousedown", (e) => {
-    dragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
-    camStartX = camX; camStartY = camY; mouseDownTime = Date.now();
-  });
-  canvas.addEventListener("mousemove", (e) => {
-    if (dragging) {
-      camX = camStartX + (e.clientX - dragStartX) / camZoom;
-      camY = camStartY + (e.clientY - dragStartY) / camZoom;
-    }
+    mouseDownTime = Date.now();
     const mx = (e.clientX - W / 2) / camZoom - camX;
     const my = (e.clientY - H / 2) / camZoom - camY;
-    hoveredNode = findNode(mx, my);
-    canvas.style.cursor = hoveredNode ? "pointer" : dragging ? "grabbing" : "grab";
+    const hit = findNode(mx, my);
+    if (hit) {
+      draggedNode = hit;
+      canvas.style.cursor = "grabbing";
+    } else {
+      draggedNode = null;
+      dragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
+      camStartX = camX; camStartY = camY;
+    }
+  });
+  canvas.addEventListener("mousemove", (e) => {
+    const mx = (e.clientX - W / 2) / camZoom - camX;
+    const my = (e.clientY - H / 2) / camZoom - camY;
+    if (draggedNode) {
+      draggedNode.umapX = mx; draggedNode.umapY = my;
+      draggedNode._origX = mx; draggedNode._origY = my;
+      canvas.style.cursor = "grabbing";
+    } else if (dragging) {
+      camX = camStartX + (e.clientX - dragStartX) / camZoom;
+      camY = camStartY + (e.clientY - dragStartY) / camZoom;
+    } else {
+      hoveredNode = findNode(mx, my);
+      canvas.style.cursor = hoveredNode ? "pointer" : "grab";
+    }
   });
   canvas.addEventListener("mouseup", (e) => {
+    const wasNodeDrag = draggedNode !== null;
+    const wasDragging = dragging;
     dragging = false;
-    if (Date.now() - mouseDownTime < 250) {
+
+    if (wasNodeDrag && Date.now() - mouseDownTime < 200) {
+      // Short click on node = select, not drag
+      selectedNode = draggedNode;
+      if (currentDatasetKey === "researcher") showResearcherPanel(draggedNode);
+      else showPanel(draggedNode);
+    } else if (!wasNodeDrag && !wasDragging) {
+      // Click on empty space
+    } else if (!wasNodeDrag && Date.now() - mouseDownTime < 250) {
       const mx = (e.clientX - W / 2) / camZoom - camX;
       const my = (e.clientY - H / 2) / camZoom - camY;
       const clicked = findNode(mx, my);
@@ -343,6 +398,7 @@
         else showPanel(clicked);
       } else { selectedNode = null; hidePanel(); hideResearcherPanel(); }
     }
+    draggedNode = null;
   });
 
   function findNode(mx, my) {
