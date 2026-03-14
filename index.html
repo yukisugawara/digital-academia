@@ -11,9 +11,9 @@
   <div id="auth-overlay">
     <div id="auth-box">
       <h1>大阪大学大学院人文学研究科 デジタルアカデミア</h1>
-      <p>閲覧にはパスワードが必要です</p>
-      <input type="password" id="auth-input" placeholder="パスワードを入力..." autocomplete="off">
-      <button id="auth-submit">入る</button>
+      <p data-i18n-ja="閲覧にはパスワードが必要です" data-i18n-en="A password is required to view this page">閲覧にはパスワードが必要です</p>
+      <input type="password" id="auth-input" placeholder="パスワードを入力..." data-i18n-ph-ja="パスワードを入力..." data-i18n-ph-en="Enter password..." autocomplete="off">
+      <button id="auth-submit" data-i18n-ja="入る" data-i18n-en="Enter">入る</button>
       <p id="auth-error" class="auth-error"></p>
     </div>
   </div>
@@ -24,23 +24,25 @@
   <!-- Tutorial overlay -->
   <div id="tutorial-overlay" style="display:none">
     <div id="tutorial-box">
-      <h2>使い方</h2>
+      <h2 data-i18n-ja="使い方" data-i18n-en="How to Use">使い方</h2>
       <ul class="tutorial-list">
-        <li><span class="tut-key">ドラッグ</span>画面を移動</li>
-        <li><span class="tut-key">スクロール / ピンチ</span>拡大・縮小</li>
-        <li><span class="tut-key">クリック / タップ</span>ノードの詳細を表示</li>
-        <li><span class="tut-key">検索</span>授業名・教員名・研究者名で検索</li>
-        <li><span class="tut-key">凡例</span>トピッククラスタをクリックでフィルタ</li>
-        <li><span class="tut-key">上部ボタン</span>授業 / 研究業績ネットワーク切替</li>
+        <li><span class="tut-key" data-i18n-ja="ドラッグ" data-i18n-en="Drag">ドラッグ</span><span data-i18n-ja="画面を移動" data-i18n-en="Pan the view">画面を移動</span></li>
+        <li><span class="tut-key" data-i18n-ja="スクロール / ピンチ" data-i18n-en="Scroll / Pinch">スクロール / ピンチ</span><span data-i18n-ja="拡大・縮小" data-i18n-en="Zoom in/out">拡大・縮小</span></li>
+        <li><span class="tut-key" data-i18n-ja="クリック / タップ" data-i18n-en="Click / Tap">クリック / タップ</span><span data-i18n-ja="ノードの詳細を表示" data-i18n-en="Show node details">ノードの詳細を表示</span></li>
+        <li><span class="tut-key" data-i18n-ja="検索" data-i18n-en="Search">検索</span><span data-i18n-ja="授業名・教員名・研究者名で検索" data-i18n-en="Search by course, instructor, or researcher">授業名・教員名・研究者名で検索</span></li>
+        <li><span class="tut-key" data-i18n-ja="凡例" data-i18n-en="Legend">凡例</span><span data-i18n-ja="トピッククラスタをクリックでフィルタ" data-i18n-en="Click a topic cluster to filter">トピッククラスタをクリックでフィルタ</span></li>
+        <li><span class="tut-key" data-i18n-ja="上部ボタン" data-i18n-en="Top buttons">上部ボタン</span><span data-i18n-ja="授業 / 研究業績ネットワーク切替" data-i18n-en="Switch between course and research networks">授業 / 研究業績ネットワーク切替</span></li>
       </ul>
-      <button id="tutorial-close" class="ctrl-btn">はじめる</button>
+      <button id="tutorial-close" class="ctrl-btn" data-i18n-ja="はじめる" data-i18n-en="Start">はじめる</button>
     </div>
   </div>
 
   <div id="mode-switch">
-    <button class="mode-btn active" data-mode="syllabus">授業ネットワーク</button>
-    <button class="mode-btn" data-mode="researcher">研究業績ネットワーク</button>
+    <button class="mode-btn active" data-mode="syllabus" data-i18n-ja="授業ネットワーク" data-i18n-en="Course Network">授業ネットワーク</button>
+    <button class="mode-btn" data-mode="researcher" data-i18n-ja="研究業績ネットワーク" data-i18n-en="Research Network">研究業績ネットワーク</button>
   </div>
+
+  <button id="lang-toggle" class="lang-btn" title="English / 日本語">EN</button>
 
   <div id="search-box">
     <input type="text" id="search-input" placeholder="検索..." autocomplete="off">
@@ -64,11 +66,11 @@
       <span id="panel-cluster" class="tag cluster-tag"></span>
     </div>
     <div id="panel-instructors" class="instructors"></div>
-    <h3 class="section-label">授業の目的と概要</h3>
+    <h3 class="section-label" data-i18n-ja="授業の目的と概要" data-i18n-en="Course Objective">授業の目的と概要</h3>
     <p id="panel-objective" class="objective"></p>
-    <h3 class="section-label">学習目標</h3>
+    <h3 class="section-label" data-i18n-ja="学習目標" data-i18n-en="Learning Goals">学習目標</h3>
     <p id="panel-goals" class="objective"></p>
-    <h3 class="section-label">関連科目</h3>
+    <h3 class="section-label" data-i18n-ja="関連科目" data-i18n-en="Related Courses">関連科目</h3>
     <ul id="panel-related" class="related-list"></ul>
   </div>
 
@@ -80,7 +82,7 @@
     </div>
     <p id="instr-panel-count" class="subtitle"></p>
     <div id="instr-panel-crosslink" class="crosslink"></div>
-    <h3 class="section-label">担当科目一覧</h3>
+    <h3 class="section-label" data-i18n-ja="担当科目一覧" data-i18n-en="Courses Taught">担当科目一覧</h3>
     <ul id="instr-panel-list" class="instr-course-list"></ul>
   </div>
 
@@ -100,11 +102,11 @@
       <span id="res-panel-cluster" class="tag cluster-tag"></span>
     </div>
     <div id="res-panel-crosslink" class="crosslink"></div>
-    <h3 class="section-label">研究業績数</h3>
+    <h3 class="section-label" data-i18n-ja="研究業績数" data-i18n-en="Publications">研究業績数</h3>
     <p id="res-panel-count" class="res-count"></p>
-    <h3 class="section-label">代表的な業績</h3>
+    <h3 class="section-label" data-i18n-ja="代表的な業績" data-i18n-en="Representative Works">代表的な業績</h3>
     <ul id="res-panel-titles" class="res-titles-list"></ul>
-    <h3 class="section-label">関連する研究者</h3>
+    <h3 class="section-label" data-i18n-ja="関連する研究者" data-i18n-en="Related Researchers">関連する研究者</h3>
     <ul id="res-panel-related" class="related-list"></ul>
   </div>
 
@@ -121,15 +123,15 @@
     <div class="legend-title">NODE SIZE</div>
     <div class="size-legend-row">
       <span class="size-dot size-sm"></span>
-      <span>関連少</span>
+      <span data-i18n-ja="関連少" data-i18n-en="Few">関連少</span>
       <span class="size-dot size-lg"></span>
-      <span>関連多</span>
+      <span data-i18n-ja="関連多" data-i18n-en="Many">関連多</span>
     </div>
     <div class="size-legend-row">
       <span class="edge-thin"></span>
-      <span>類似度低</span>
+      <span data-i18n-ja="類似度低" data-i18n-en="Low">類似度低</span>
       <span class="edge-thick"></span>
-      <span>類似度高</span>
+      <span data-i18n-ja="類似度高" data-i18n-en="High">類似度高</span>
     </div>
   </div>
 

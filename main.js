@@ -1,16 +1,46 @@
 (async function () {
+  // ===== i18n =====
+  let lang = localStorage.getItem("da-lang") || "ja";
+
+  function t(ja, en) { return lang === "en" ? (en || ja) : ja; }
+
+  function applyLang() {
+    document.querySelectorAll("[data-i18n-ja]").forEach((el) => {
+      el.textContent = lang === "en" ? el.dataset.i18nEn : el.dataset.i18nJa;
+    });
+    document.querySelectorAll("[data-i18n-ph-ja]").forEach((el) => {
+      el.placeholder = lang === "en" ? el.dataset.i18nPhEn : el.dataset.i18nPhJa;
+    });
+    const searchIn = document.getElementById("search-input");
+    if (searchIn) searchIn.placeholder = t("検索...", "Search...");
+    const langBtn = document.getElementById("lang-toggle");
+    if (langBtn) langBtn.textContent = lang === "en" ? "JA" : "EN";
+  }
+
+  document.getElementById("lang-toggle").addEventListener("click", () => {
+    lang = lang === "ja" ? "en" : "ja";
+    localStorage.setItem("da-lang", lang);
+    applyLang();
+    if (typeof buildLegend === "function") buildLegend();
+    // Re-show panel if one is open
+    if (selectedNode) {
+      if (currentDatasetKey === "researcher") showResearcherPanel(selectedNode);
+      else showPanel(selectedNode);
+    }
+  });
+
   const DATASETS = {
     syllabus: { url: "network_data.json", label: "授業ネットワーク", type: "syllabus" },
     researcher: { url: "researcher_network_data.json", label: "研究業績ネットワーク", type: "researcher" },
   };
 
-  // Cache loaded data
   const dataCache = {};
 
   let currentDatasetKey = "syllabus";
   let nodes, edges, idToIndex, edgeIndices, adjacency;
   let instructorMap;
   let clusterColors, clusterCounts, clusterSamples, clusterLabels;
+  let clusterLabelsJa, clusterLabelsEn;
   let N_CLUSTERS;
 
   // Cross-link: researcher name → researcher node id
@@ -97,8 +127,14 @@
     clusterColors = [];
     for (let i = 0; i < N_CLUSTERS; i++) clusterColors.push((i * 360 / N_CLUSTERS + 200) % 360);
 
-    const SYLLABUS_TOPIC_LABELS = { 0:"美術史・考古学・歴史資料",1:"修士論文指導・研究指導",2:"欧米文学・思想テクスト講読",3:"言語学・統語論・意味論",4:"異文化理解・人文学基礎",5:"中央・南・東南アジア地域研究",6:"外国語教育・言語習得",7:"音楽学・演劇・芸術表現",8:"科学技術倫理・学術発表・フランス語",9:"研究セミナー・論文執筆",10:"美学・美術批評・視覚文化",11:"スペイン語・ポルトガル語・イタリア語圏",12:"東アジア言語文化・漢籍・朝鮮語学",13:"中国文学・語学・中国史",14:"フランス語圏文学・文化",15:"演劇・社会問題・パフォーマンス",16:"西洋古代・中世史・英語圏文学",17:"臨床哲学・倫理学・ケア",18:"ドイツ・北欧地域研究",19:"日本語教育・日本文化研究" };
-    const RESEARCHER_TOPIC_LABELS = { 0:"臨床哲学・医療倫理",1:"文学研究・比較文化",2:"英米文学・哲学・演劇",3:"フランス文学・西洋古代史",4:"臨床哲学・ケアの倫理・対話",5:"言語学・音韻論・言語教育",6:"イベリア半島地域研究",7:"言語学・文法・フランス語学",8:"ペルシア語・ロシア語・中東研究",9:"文化人類学・地域社会・グローバル研究",10:"東洋学・仏教学・東南アジア",11:"近現代国際関係・移民・異文化交流",12:"中国学・東洋史・漢文",13:"近現代国際政治外交史",14:"デジタル人文学・言語教育・教育実践" };
+    const SYLLABUS_LABELS_JA = { 0:"美術史・考古学・歴史資料",1:"修士論文指導・研究指導",2:"欧米文学・思想テクスト講読",3:"言語学・統語論・意味論",4:"異文化理解・人文学基礎",5:"中央・南・東南アジア地域研究",6:"外国語教育・言語習得",7:"音楽学・演劇・芸術表現",8:"科学技術倫理・学術発表・フランス語",9:"研究セミナー・論文執筆",10:"美学・美術批評・視覚文化",11:"スペイン語・ポルトガル語・イタリア語圏",12:"東アジア言語文化・漢籍・朝鮮語学",13:"中国文学・語学・中国史",14:"フランス語圏文学・文化",15:"演劇・社会問題・パフォーマンス",16:"西洋古代・中世史・英語圏文学",17:"臨床哲学・倫理学・ケア",18:"ドイツ・北欧地域研究",19:"日本語教育・日本文化研究" };
+    const SYLLABUS_LABELS_EN = { 0:"Art History / Archaeology",1:"Thesis Supervision",2:"Western Literature & Philosophy",3:"Linguistics / Syntax / Semantics",4:"Intercultural Studies / Humanities",5:"Central / South / Southeast Asian Studies",6:"Foreign Language Education",7:"Musicology / Theater / Performing Arts",8:"STS / Academic Presentation / French",9:"Research Seminars / Academic Writing",10:"Aesthetics / Art Criticism / Visual Culture",11:"Spanish / Portuguese / Italian Studies",12:"East Asian Languages / Chinese Classics / Korean",13:"Chinese Literature / Linguistics / History",14:"Francophone Literature & Culture",15:"Theater / Social Issues / Performance",16:"Western Ancient & Medieval History / English Lit.",17:"Clinical Philosophy / Ethics / Care",18:"German & Northern European Studies",19:"Japanese Language Education & Cultural Studies" };
+    const RESEARCHER_LABELS_JA = { 0:"臨床哲学・医療倫理",1:"文学研究・比較文化",2:"英米文学・哲学・演劇",3:"フランス文学・西洋古代史",4:"臨床哲学・ケアの倫理・対話",5:"言語学・音韻論・言語教育",6:"イベリア半島地域研究",7:"言語学・文法・フランス語学",8:"ペルシア語・ロシア語・中東研究",9:"文化人類学・地域社会・グローバル研究",10:"東洋学・仏教学・東南アジア",11:"近現代国際関係・移民・異文化交流",12:"中国学・東洋史・漢文",13:"近現代国際政治外交史",14:"デジタル人文学・言語教育・教育実践" };
+    const RESEARCHER_LABELS_EN = { 0:"Clinical Philosophy / Medical Ethics",1:"Literary Studies / Comparative Culture",2:"English & American Lit. / Philosophy / Drama",3:"French Literature / Western Ancient History",4:"Clinical Philosophy / Ethics of Care / Dialogue",5:"Linguistics / Phonology / Language Education",6:"Iberian Peninsula Studies",7:"Linguistics / Grammar / French Linguistics",8:"Persian / Russian / Middle Eastern Studies",9:"Cultural Anthropology / Community / Global Studies",10:"Oriental Studies / Buddhism / Southeast Asia",11:"Modern International Relations / Migration",12:"Chinese Studies / Eastern History",13:"Modern International Political & Diplomatic History",14:"Digital Humanities / Language Education" };
+
+    // Store all label sets for language switching
+    const labelsJa = ds.type === "syllabus" ? SYLLABUS_LABELS_JA : RESEARCHER_LABELS_JA;
+    const labelsEn = ds.type === "syllabus" ? SYLLABUS_LABELS_EN : RESEARCHER_LABELS_EN;
 
     clusterCounts = new Array(N_CLUSTERS).fill(0);
     clusterSamples = new Array(N_CLUSTERS).fill(null).map(() => []);
@@ -113,10 +149,10 @@
       }
     });
 
-    const labels = ds.type === "syllabus" ? SYLLABUS_TOPIC_LABELS : RESEARCHER_TOPIC_LABELS;
-    clusterLabels = Array.from({ length: N_CLUSTERS }, (_, i) =>
-      labels[i] || clusterSamples[i]?.slice(0, 2).join(" / ") || `Topic ${i}`
-    );
+    // clusterLabels is now a function of current lang
+    clusterLabelsJa = Array.from({ length: N_CLUSTERS }, (_, i) => labelsJa[i] || `Topic ${i}`);
+    clusterLabelsEn = Array.from({ length: N_CLUSTERS }, (_, i) => labelsEn[i] || `Topic ${i}`);
+    clusterLabels = lang === "en" ? clusterLabelsEn : clusterLabelsJa;
 
     instructorMap = new Map();
     if (ds.type === "syllabus") {
@@ -341,6 +377,10 @@
   const clusterTooltip = document.getElementById("cluster-tooltip");
 
   function buildLegend() {
+    // Refresh labels for current language
+    if (clusterLabelsJa && clusterLabelsEn) {
+      clusterLabels = lang === "en" ? clusterLabelsEn : clusterLabelsJa;
+    }
     let html = '<div class="legend-title">TOPIC CLUSTERS</div>';
     for (let i = 0; i < N_CLUSTERS; i++) {
       if (clusterCounts[i] === 0) continue;
@@ -502,17 +542,21 @@
   document.getElementById("panel-share").addEventListener("click", () => { if (selectedNode) copyShareUrl(selectedNode.id); });
 
   function showPanel(n) {
-    panelTitle.textContent = n.label;
-    panelTitleEn.textContent = n.label_en || "";
-    panelSubtitle.textContent = n.subtitle || "";
-    panelSemester.textContent = n.semester || "";
-    panelDay.textContent = n.day_period || "";
+    const isEn = lang === "en";
+    panelTitle.textContent = isEn ? (n.label_en || n.label) : n.label;
+    panelTitleEn.textContent = isEn ? n.label : (n.label_en || "");
+    panelSubtitle.textContent = isEn ? (n.subtitle_en || n.subtitle || "") : (n.subtitle || "");
+    panelSemester.textContent = isEn ? (n.semester_en || n.semester || "") : (n.semester || "");
+    panelDay.textContent = isEn ? (n.day_period_en || n.day_period || "") : (n.day_period || "");
     panelCluster.textContent = clusterLabels[n.cluster] || `Topic ${n.cluster}`;
     panelCluster.style.borderColor = `hsl(${clusterColors[n.cluster]},60%,50%)`;
     panelCluster.style.color = `hsl(${clusterColors[n.cluster]},70%,65%)`;
-    panelInstructors.innerHTML = (n.instructors||[])
-      .map((name) => `<span class="instructor-chip clickable" data-instructor="${escapeHtml(name)}">${escapeHtml(name)}</span>`)
-      .join("");
+    const instrNames = isEn ? (n.instructors_en && n.instructors_en.length ? n.instructors_en : n.instructors || []) : (n.instructors || []);
+    panelInstructors.innerHTML = instrNames
+      .map((name, idx) => {
+        const jaName = (n.instructors || [])[idx] || name;
+        return `<span class="instructor-chip clickable" data-instructor="${escapeHtml(jaName)}">${escapeHtml(name)}</span>`;
+      }).join("");
     panelInstructors.querySelectorAll(".instructor-chip.clickable").forEach((chip) => {
       chip.addEventListener("click", () => {
         const instrName = chip.dataset.instructor;
@@ -520,13 +564,15 @@
         if (indices) { hidePanel(); selectInstructor(instrName, indices); }
       });
     });
-    panelObjective.textContent = n.objective || "（情報なし）";
-    panelGoals.textContent = n.goals || "（情報なし）";
+    const noInfo = t("（情報なし）", "(No information)");
+    panelObjective.textContent = isEn ? (n.objective_en || n.objective || noInfo) : (n.objective || noInfo);
+    panelGoals.textContent = isEn ? (n.goals_en || n.goals || noInfo) : (n.goals || noInfo);
 
     const related = (adjacency.get(n.id)||[]).sort((a, b) => b.weight - a.weight).slice(0, 10);
     panelRelated.innerHTML = related.map((r) => {
       const rn = nodes[idToIndex.get(r.id)]; if (!rn) return "";
-      return `<li data-id="${r.id}">${escapeHtml(rn.label.replace(/^\[科目\]/,""))}<span class="rel-score">${Math.round(r.weight*100)}%</span></li>`;
+      const name = isEn ? (rn.label_en || rn.label) : rn.label;
+      return `<li data-id="${r.id}">${escapeHtml(name.replace(/^\[科目\]/,""))}<span class="rel-score">${Math.round(r.weight*100)}%</span></li>`;
     }).join("");
     panelRelated.querySelectorAll("li").forEach((li) => {
       li.addEventListener("click", () => {
@@ -554,7 +600,7 @@
 
     // Cross-link to researcher network
     if (researcherNameToId[name]) {
-      instrPanelCrosslink.innerHTML = `<button class="crosslink-btn" data-name="${escapeHtml(name)}">&#8594; 研究業績ネットワークで見る</button>`;
+      instrPanelCrosslink.innerHTML = `<button class="crosslink-btn" data-name="${escapeHtml(name)}">&#8594; ${escapeHtml(t("研究業績ネットワークで見る", "View in Research Network"))}</button>`;
       instrPanelCrosslink.querySelector("button").addEventListener("click", async () => {
         const rid = researcherNameToId[name];
         hideInstructorPanel(); highlightedNodes.clear();
@@ -594,14 +640,15 @@
   document.getElementById("res-panel-share").addEventListener("click", () => { if (selectedNode) copyShareUrl(selectedNode.id); });
 
   function showResearcherPanel(n) {
-    resPanelName.textContent = n.label;
-    resPanelNameEn.textContent = n.label_en || "";
+    const isEn = lang === "en";
+    resPanelName.textContent = isEn ? (n.label_en || n.label) : n.label;
+    resPanelNameEn.textContent = isEn ? n.label : (n.label_en || "");
     resPanelAff.textContent = n.affiliation || "";
     resPanelRank.textContent = n.rank || "";
     resPanelCluster.textContent = clusterLabels[n.cluster] || `Topic ${n.cluster}`;
     resPanelCluster.style.borderColor = `hsl(${clusterColors[n.cluster]},60%,50%)`;
     resPanelCluster.style.color = `hsl(${clusterColors[n.cluster]},70%,65%)`;
-    resPanelCount.textContent = `${n.achievement_count||0} 件`;
+    resPanelCount.textContent = `${n.achievement_count||0} ${t("件", "items")}`;
 
     // Cross-link to syllabus
     const syllabusData = dataCache.syllabus;
@@ -613,7 +660,8 @@
       }
       if (instrNodes.length > 0) {
         hasSyllabus = true;
-        resPanelCrosslink.innerHTML = `<button class="crosslink-btn">&#8594; 授業ネットワークで見る（${instrNodes.length}科目）</button>`;
+        const linkText = t(`授業ネットワークで見る（${instrNodes.length}科目）`, `View in Course Network (${instrNodes.length} courses)`);
+        resPanelCrosslink.innerHTML = `<button class="crosslink-btn">&#8594; ${escapeHtml(linkText)}</button>`;
         resPanelCrosslink.querySelector("button").addEventListener("click", async () => {
           hideResearcherPanel();
           await loadDataset("syllabus");
@@ -624,12 +672,14 @@
     }
     if (!hasSyllabus) resPanelCrosslink.innerHTML = "";
 
-    resPanelTitles.innerHTML = (n.top_titles||[]).map((t) => `<li>${escapeHtml(t)}</li>`).join("");
+    const titles = isEn ? (n.top_titles_en && n.top_titles_en.length ? n.top_titles_en : n.top_titles || []) : (n.top_titles || []);
+    resPanelTitles.innerHTML = titles.map((ti) => `<li>${escapeHtml(ti)}</li>`).join("");
 
     const related = (adjacency.get(n.id)||[]).sort((a, b) => b.weight - a.weight).slice(0, 10);
     resPanelRelated.innerHTML = related.map((r) => {
       const rn = nodes[idToIndex.get(r.id)]; if (!rn) return "";
-      return `<li data-id="${r.id}">${escapeHtml(rn.label)}<span class="rel-score">${Math.round(r.weight*100)}%</span></li>`;
+      const name = isEn ? (rn.label_en || rn.label) : rn.label;
+      return `<li data-id="${r.id}">${escapeHtml(name)}<span class="rel-score">${Math.round(r.weight*100)}%</span></li>`;
     }).join("");
     resPanelRelated.querySelectorAll("li").forEach((li) => {
       li.addEventListener("click", () => {
@@ -731,7 +781,7 @@
         grad.addColorStop(1, "transparent");
         ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(n.x, n.y, glowR, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = `hsla(45,100%,75%,0.95)`; ctx.beginPath(); ctx.arc(n.x, n.y, r * 1.5, 0, Math.PI * 2); ctx.fill();
-        if (currentDatasetKey === "researcher") { ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = 'bold 11px "Hiragino Sans",sans-serif'; ctx.textAlign = "center"; ctx.fillText(n.label, n.x, n.y - r * 1.5 - 6); }
+        if (currentDatasetKey === "researcher") { ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = 'bold 11px "Hiragino Sans",sans-serif'; ctx.textAlign = "center"; ctx.fillText(lang === "en" ? (n.label_en || n.label) : n.label, n.x, n.y - r * 1.5 - 6); }
         continue;
       }
       if (isDimmed) { ctx.fillStyle = "rgba(60,55,80,0.25)"; ctx.beginPath(); ctx.arc(n.x, n.y, r * 0.7, 0, Math.PI * 2); ctx.fill(); continue; }
@@ -747,10 +797,10 @@
       if (currentDatasetKey === "researcher") {
         if (camZoom > 0.6 || isActive) {
           const op = isActive ? 0.95 : Math.min(0.75, (camZoom - 0.4) * 1.5);
-          if (op > 0) { ctx.fillStyle = `rgba(255,255,255,${op})`; ctx.font = `${Math.max(7, Math.min(11, 9 / Math.sqrt(camZoom)))}px "Hiragino Sans",sans-serif`; ctx.textAlign = "center"; ctx.fillText(n.label, n.x, n.y - r - 4); }
+          if (op > 0) { ctx.fillStyle = `rgba(255,255,255,${op})`; ctx.font = `${Math.max(7, Math.min(11, 9 / Math.sqrt(camZoom)))}px "Hiragino Sans",sans-serif`; ctx.textAlign = "center"; ctx.fillText(lang === "en" ? (n.label_en || n.label) : n.label, n.x, n.y - r - 4); }
         }
       } else if (camZoom > 1.0 && n.degree > 10) {
-        const lbl = (n.subtitle||n.label||"").replace(/^\[科目\]/,"").slice(0, 15);
+        const lbl = (lang === "en" ? (n.subtitle_en||n.label_en||n.subtitle||n.label||"") : (n.subtitle||n.label||"")).replace(/^\[科目\]/,"").slice(0, 15);
         ctx.fillStyle = `rgba(255,255,255,${Math.min(0.8, (camZoom - 1) * 0.8)})`;
         ctx.font = `${Math.max(8, 10 / camZoom * 1.2)}px "Hiragino Sans",sans-serif`; ctx.textAlign = "center";
         ctx.fillText(lbl, n.x, n.y - r - 4);
@@ -840,5 +890,6 @@
   // Check URL params for initial mode
   const urlMode = new URLSearchParams(window.location.search).get("mode");
   await loadDataset(urlMode && DATASETS[urlMode] ? urlMode : "syllabus");
+  applyLang();
   loop();
 })();
