@@ -655,22 +655,37 @@
     alpha *= 0.997;
   }
 
+  // Drift state: each node gets a unique slow drift
+  let driftTime = 0;
+
   function updatePositions() {
     const tgt = layoutMode === "umap" ? 1 : 0;
     layoutTransition += (tgt - layoutTransition) * 0.08;
-    for (const n of nodes) {
-      n.x = n.forceX * (1 - layoutTransition) + n.umapX * layoutTransition;
-      n.y = n.forceY * (1 - layoutTransition) + n.umapY * layoutTransition;
+    driftTime += 0.003; // very slow
+
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      const baseX = n.forceX * (1 - layoutTransition) + n.umapX * layoutTransition;
+      const baseY = n.forceY * (1 - layoutTransition) + n.umapY * layoutTransition;
+
+      // Gentle starfield drift — unique per node using index as seed
+      const phase1 = i * 0.7 + driftTime;
+      const phase2 = i * 1.3 + driftTime * 0.8;
+      const driftX = Math.sin(phase1) * 3 + Math.sin(phase1 * 0.4) * 2;
+      const driftY = Math.cos(phase2) * 3 + Math.cos(phase2 * 0.5) * 2;
+
+      n.x = baseX + driftX;
+      n.y = baseY + driftY;
     }
   }
 
   // ===== Ambient particles =====
   const ambientParticles = [];
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 50; i++) {
     ambientParticles.push({
       x: (Math.random() - 0.5) * 2000, y: (Math.random() - 0.5) * 2000,
-      vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
-      size: 0.5 + Math.random() * 1.5, phase: Math.random() * Math.PI * 2,
+      vx: (Math.random() - 0.5) * 0.08, vy: (Math.random() - 0.5) * 0.08,
+      size: 0.4 + Math.random() * 1.2, phase: Math.random() * Math.PI * 2,
       hue: 200 + Math.random() * 160,
     });
   }
@@ -728,7 +743,7 @@
 
     // ===== Ambient particles =====
     for (const p of ambientParticles) {
-      p.x += p.vx; p.y += p.vy; p.phase += 0.02;
+      p.x += p.vx; p.y += p.vy; p.phase += 0.008;
       if (p.x > 1200) p.x = -1200; if (p.x < -1200) p.x = 1200;
       if (p.y > 1200) p.y = -1200; if (p.y < -1200) p.y = 1200;
       const alpha = 0.15 + 0.1 * Math.sin(p.phase);
@@ -809,10 +824,8 @@
 
     // ===== Nodes =====
     const active = hoveredNode || selectedNode;
-    const breathe = Math.sin(frameTime * 1.5) * 0.08;
     for (const n of nodes) {
-      const baseR = nodeRadius(n);
-      const r = baseR * (1 + breathe * (0.5 + n.degree * 0.05));
+      const r = nodeRadius(n);
       const isActive = active && n.id === active.id;
       const isSearchHit = highlightedNodes.has(n.id);
       const isDimmed = clusterDim && n.cluster !== activeCluster && !isActive && !isSearchHit;
